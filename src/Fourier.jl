@@ -155,23 +155,13 @@ function getMaxFlow(Chi_LR::AbstractMatrix,Lambdas,Lattice::LatticeInfo;  res = 
     return Lamnew,flow
 end
 
-function getkMax(Chi_R::AbstractVector,Lattice::LatticeInfo{BT,RT,FuncT,Dim};  res = 50,ext = 4pi) where {BT,RT,FuncT,Dim}
-    FT = getFullFourier(Lattice,res = res,ext=ext)
-    k,Chik = FT(Chi_R)
-    maxIndex = argmax(Chik)
-    return SVector{Dim,Float64}([k[i] for i in Tuple(maxIndex)])
+function getkMax(Chi_R::AbstractVector,Lattice::LatticeInfo,ext = 4pi,res = 50;kwargs...) 
+    FT = getFullFourier(Lattice;ext,res,kwargs...)
+    k, Chik = FT(Chi_R)
+    maxpos =  Tuple(argmax(Chik))
+    kmax = k[[maxpos...]]
 end
 
-function getkMax(Chi_R,Lattice::LatticeInfo,regionfunc::Function;kwargs...)
-    k1,k2 = getkMax(Fourier2D(Chi_R,regionfunc,Lattice;kwargs...)...)
-    return regionfunc(k1,k2)
-end
-
-function getkMax(Chi_R,Lattice::LatticeInfo;kwargs...)
-    dim = getDim(Lattice.Basis)
-    dim == 3 && return getkMax(Fourier3D(Chi_R,Lattice;kwargs...)...)
-    dim == 2 && return getkMax(Fourier2D(Chi_R,Lattice,xyplane;kwargs...)...)
-end
 
 ##
 function pointPath(p1::StaticArray,p2::StaticArray,res)
@@ -206,4 +196,9 @@ function CorrelationLength(Chi::AbstractArray,Q::AbstractVector,direction::Abstr
     ChiFunc = getFourier(Chi,Lattice)
     qa = Q+direction/norm(direction) * 2pi/Lattice.System.NLen
     CorrelationLength(ChiFunc,Q,qa)
+end
+
+function CorrelationLength(Chi::AbstractArray,direction::AbstractVector,Lattice::LatticeInfo;kwargs...) 
+    Q = getkMax(Chi,Lattice;kwargs...)
+    CorrelationLength(Chi,Q,direction,Lattice)
 end
