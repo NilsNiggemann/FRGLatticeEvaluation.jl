@@ -1,0 +1,4 @@
+name = "FRGLatticeEvaluation"
+uuid = "a44b592b-45f7-4b02-a4df-e53b23f0d903"
+authors = ["Nils Niggemann <nils.niggemann@fu-berlin.de>"]
+version = "0.1.0"
