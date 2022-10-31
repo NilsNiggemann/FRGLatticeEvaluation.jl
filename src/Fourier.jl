@@ -82,7 +82,11 @@ end
 
 """Constructs a function χ(q) for given real space chi and the lattice structure and returns it"""
 function getFourier(Chi_R::AbstractArray,Lattice::AbstractLattice)
-    @inline FT(q) = FourierTransform(q,Chi_R,Lattice.Basis.NCell,Lattice.FourierInfos.pairs,Lattice.FourierInfos.Rij_vec)
+    @inline FT(q::StaticVector) = FourierTransform(Float64.(q),Chi_R,Lattice.Basis.NCell,Lattice.FourierInfos.pairs,Lattice.FourierInfos.Rij_vec)
+    @inline FT(args::Tuple) = FT(StaticVector(args))
+    @inline FT(args...) = FT(SA[args...])
+    @inline FT(q) = throw(ArgumentError("Please use a static vector or a tuple"))
+    return FT
 end
 
 """Returns 2D Fourier trafo in plane as specified by the "regionfunc" function. Eg for a plot in the xy plane we can use plane = (ki,kj) -> SA[ki,kj] """
