@@ -163,7 +163,7 @@ function getkMax(Chi_R::AbstractVector,Lattice::LatticeInfo,ext = 4pi,res = 50;k
     FT = getFullFourier(Lattice;ext,res,kwargs...)
     k, Chik = FT(Chi_R)
     maxpos =  Tuple(argmax(Chik))
-    kmax = k[[maxpos...]]
+    kmax = SA[k[[maxpos...]]...]
 end
 
 
