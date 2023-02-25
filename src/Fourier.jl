@@ -194,7 +194,7 @@ end
 """Compute correlation length according to Sandvik's definition
 A. W. Sandvik, AIP Conf. Proc. 1297, 135 (2010).
 """
-CorrelationLength(Chi::Function,Q::AbstractVector,qa::AbstractVector) = 1/norm(Q-qa) * sqrt(Chi(Q)/Chi(qa)-1)
+CorrelationLength(Chi::Function, Q::AbstractVector, qa::AbstractVector) = 1 / norm(Q - qa) * sqrt(abs(Chi(Q) / Chi(qa) - 1))
 
 function CorrelationLength(Chi::AbstractArray,Q::AbstractVector,direction::AbstractVector,Lattice::LatticeInfo) 
     ChiFunc = getFourier(Chi,Lattice)
@@ -206,3 +206,28 @@ function CorrelationLength(Chi::AbstractArray,direction::AbstractVector,Lattice:
     Q = getkMax(Chi,Lattice;kwargs...)
     CorrelationLength(Chi,Q,direction,Lattice)
 end
+
+"""Returns the maximum correlation length by averaging over a sphere in reciprocal space.
+Example: maxCorrelationLength(SA[π,π,π],Chi,NLen,res=50) averages over all angles θ, and ϕ such that the interval [0,2π] contains 50 points.
+"""
+function maxCorrelationLength(Q::SVector, chi::Function, NLen; kwargs...)
+    dirs = unitsphereGenerator(Q;kwargs...)
+    qa(d) = Q + d / norm(d) * 2π / NLen
+    return maximum(CorrelationLength(chi, Q, qa(d)) for d in dirs)
+end
+
+sphere(r,θ,ϕ) = SA[r*sin(θ)*cos(ϕ), r*sin(θ)*sin(ϕ), r*cos(θ)]
+sphere(r,ϕ) = SA[r*cos(ϕ), r*sin(θ)]
+
+function unitsphereGenerator(::SVector{3,<:Real}, res=50)
+    theta = range(0, π, res ÷ 2)
+    phi = range(0, 2π, res)
+    return (sphere(1,t,p) for t in theta for p in phi)
+end
+
+function unitsphereGenerator(::SVector{2,<:Real}, res=50)
+    phi = range(0, 2π, res)
+    return (sphere(1,p) for p in phi)
+end
+
+maxCorrelationLength(Q::SVector, chi::Function; kwargs...) = maxCorrelationLength(Q, chi, chi.Lattice.NLen;kwargs...)
