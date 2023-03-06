@@ -219,13 +219,13 @@ end
 sphere(r,θ,ϕ) = SA[r*sin(θ)*cos(ϕ), r*sin(θ)*sin(ϕ), r*cos(θ)]
 sphere(r,ϕ) = SA[r*cos(ϕ), r*sin(θ)]
 
-function unitsphereGenerator(::SVector{3,<:Real}, res=50)
+function unitsphereGenerator(::SVector{3,<:Real}; res=50)
     theta = range(0, π, res ÷ 2)
     phi = range(0, 2π, res)
     return (sphere(1,t,p) for t in theta for p in phi)
 end
 
-function unitsphereGenerator(::SVector{2,<:Real}, res=50)
+function unitsphereGenerator(::SVector{2,<:Real}; res=50)
     phi = range(0, 2π, res)
     return (sphere(1,p) for p in phi)
 end
