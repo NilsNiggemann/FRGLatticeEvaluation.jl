@@ -21,7 +21,7 @@ LatticeInfo(System::Geometry,Mod::Module,PTI =Mod.pairToInequiv ) = LatticeInfo(
 
 getDim(::Basis_Struct_2D) = 2
 getDim(::Basis_Struct_3D) = 3
-getDim(L::LatticeInfo) = getDim(L.Basis)
+getDim(L::AbstractLattice) = getDim(L.Basis)
 
 function PrecomputeFourier(UnitCell::AbstractVector{T},SiteList::AbstractVector{T},PairList::AbstractVector{T},PairTypes,pairToInequiv,Basis) where T <: Rvec
     Rij_vec = SVector{getDim(Basis),Float64}[]
@@ -127,10 +127,6 @@ function Fourier3D(Chi_R::AbstractArray,Lattice::AbstractLattice,kx_vec::Abstrac
     return Chi_k
 end
 
-##
-
-
-##
 function getFlow(k::StaticArray,Chi_LR,Lambdas,Lattice)
     flow = similar(Lambdas)
     @inline FT(k,Chi) = FourierTransform(k,Chi,Lattice)
@@ -147,7 +143,7 @@ function getFullFourier(Lattice::LatticeInfo{Basis_Struct_3D,Rvec_3D,F,3};kwargs
     @inline FT(Chi) = Fourier3D(Chi,Lattice;kwargs...)
 end
 
-function getMaxFlow(Chi_LR::AbstractMatrix,Lambdas,Lattice::LatticeInfo;  res = 50,ext = 4pi,max=maximum(Lambdas))
+function getMaxFlow(Chi_LR::AbstractMatrix,Lambdas,Lattice::AbstractLattice;  res = 50,ext = 4pi,max=maximum(Lambdas))
     index = findfirst(<=(max),Lambdas) #Todo: make this work when lambda is inversely sorted
     Lamnew = Lambdas[index:end]
     flow = similar(Lamnew)
@@ -159,7 +155,8 @@ function getMaxFlow(Chi_LR::AbstractMatrix,Lambdas,Lattice::LatticeInfo;  res = 
     return Lamnew,flow
 end
 
-function getkMax(Chi_R::AbstractVector,Lattice::LatticeInfo,ext = 4pi,res = 50;kwargs...) 
+
+function getkMax(Chi_R::AbstractVector,Lattice::AbstractLattice,ext = 4pi,res = 50;kwargs...) 
     FT = getFullFourier(Lattice;ext,res,kwargs...)
     k, Chik = FT(Chi_R)
     maxpos =  Tuple(argmax(Chik))
@@ -167,7 +164,25 @@ function getkMax(Chi_R::AbstractVector,Lattice::LatticeInfo,ext = 4pi,res = 50;k
 end
 
 
-##
+function getkMaxOptim(Chiq,kguess::T;kwargs...) where T <: SVector
+    kguess = convert(Vector,kguess)
+    MinusChi(k) = -Chiq(convert(T,k))
+    res = optimize(MinusChi,kguess;kwargs...)
+    if !Optim.converged(res)
+        @warn "optimization did not converge" res res.x_converged res.f_converged res.iterations res.stopped_by
+    end
+    k = res.minimizer
+
+    return convert(T,k)
+end
+
+"""Given a vector of real space susceptibilities and a lattice, compute the wavevector of the maximum susceptibility by first optimizing over a coarse k-space grid of resolution res and then refining the result with a gradient descent"""
+function getkMaxOptim(Chi_R::AbstractVector,Lattice::AbstractLattice;ext = 4pi,res = 50,kwargs...)
+    kguess = getkMax(Chi_R,Lattice,ext,res)
+    Chiq = getFourier(Chi_R,Lattice)
+    return getkMaxOptim(Chiq,kguess;kwargs...)
+end
+
 function pointPath(p1::StaticArray,p2::StaticArray,res)
     Path = Vector{typeof(p1)}(undef,res)
     for i in eachindex(Path)
@@ -196,13 +211,13 @@ A. W. Sandvik, AIP Conf. Proc. 1297, 135 (2010).
 """
 CorrelationLength(Chi::Function, Q::AbstractVector, qa::AbstractVector) = 1 / norm(Q - qa) * sqrt(abs(Chi(Q) / Chi(qa) - 1))
 
-function CorrelationLength(Chi::AbstractArray,Q::AbstractVector,direction::AbstractVector,Lattice::LatticeInfo) 
+function CorrelationLength(Chi::AbstractArray,Q::AbstractVector,direction::AbstractVector,Lattice::AbstractLattice) 
     ChiFunc = getFourier(Chi,Lattice)
     qa = Q+direction/norm(direction) * 2pi/Lattice.System.NLen
     CorrelationLength(ChiFunc,Q,qa)
 end
 
-function CorrelationLength(Chi::AbstractArray,direction::AbstractVector,Lattice::LatticeInfo;kwargs...) 
+function CorrelationLength(Chi::AbstractArray,direction::AbstractVector,Lattice::AbstractLattice;kwargs...) 
     Q = getkMax(Chi,Lattice;kwargs...)
     CorrelationLength(Chi,Q,direction,Lattice)
 end
