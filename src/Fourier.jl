@@ -69,12 +69,66 @@ end
     @inbounds @simd for i in eachindex(pairs,Rij_vec)
         p = pairs[i]
         Rij = Rij_vec[i]
-        
         Chi_k += cos_fast(dot(k,Rij)) * Chi_R[p]
     end
     return 1/NCell * Chi_k
 end
 
+struct FourierStr3D_2{T<:Real} <:Function
+    FourierInfos::FourierInfo{3}
+    Sij_vec::Vector{T}
+    Rx_vec::Vector{T}
+    Ry_vec::Vector{T}
+    Rz_vec::Vector{T}
+    NCell::Int
+end
+struct FourierStr2D{T<:Real} <:Function
+    FourierInfos::FourierInfo{2}
+    Sij_vec::Vector{T}
+    Rx_vec::Vector{T}
+    Ry_vec::Vector{T}
+    NCell::Int
+end
+
+function splitRij(Rij::Vector{SVector{Dim,T}}) where {T<:Real,Dim}
+    return [[r[i] for r in Rij] for i in 1:Dim]
+end
+
+FourierStr(F::FourierInfo{2},Sij,Rx_vec,Ry_vec,NCell) = FourierStr2D(F,Sij,Rx_vec,Ry_vec,NCell)
+FourierStr(F::FourierInfo{3},Sij,Rx_vec,Ry_vec,Rz_vec,NCell) = FourierStr3D_2(F,Sij,Rx_vec,Ry_vec,Rz_vec,NCell)
+
+function FourierStr(S_pairs::AbstractVector,Lattice::AbstractLattice)
+    Sij = S_pairs[Lattice.FourierInfos.pairs]
+    Rij_vec = Lattice.FourierInfos.Rij_vec
+
+    R = splitRij(Rij_vec)
+    return FourierStr(Lattice.FourierInfos,Sij,R...,Lattice.Basis.NCell)
+end
+
+@inline function (F::FourierStr3D_2)(k::AbstractVector{T}) where T <: Real
+    Chi_k = zero(T)
+    kx,ky,kz = k
+    (;Rx_vec,Ry_vec,Rz_vec,Sij_vec,NCell) = F
+    @turbo for i in eachindex(Rx_vec,Ry_vec,Rz_vec,Sij_vec)
+        Rx = Rx_vec[i]
+        Ry = Ry_vec[i]
+        Rz = Rz_vec[i]
+        Chi_k += cos(kx*Rx+ky*Ry+kz*Rz) * Sij_vec[i]
+    end
+    return Chi_k/NCell
+end
+
+@inline function (F::FourierStr2D)(k::AbstractVector{T}) where T <: Real
+    Chi_k = zero(T)
+    kx,ky = k
+    (;Rx_vec,Ry_vec,Sij_vec,NCell) = F
+    @turbo for i in eachindex(Rx_vec,Ry_vec,Sij_vec)
+        Rx = Rx_vec[i]
+        Ry = Ry_vec[i]
+        Chi_k += cos(kx*Rx+ky*Ry) * Sij_vec[i]
+    end
+    return Chi_k/NCell
+end
 
 @inline FourierTransform(k,Chi_R, Lattice::AbstractLattice) = FourierTransform(k,Chi_R, Lattice.Basis.NCell,Lattice.FourierInfos.pairs,Lattice.FourierInfos.Rij_vec) 
 
