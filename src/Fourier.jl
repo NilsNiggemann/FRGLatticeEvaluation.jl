@@ -74,7 +74,7 @@ end
     return 1/NCell * Chi_k
 end
 
-struct FourierStr3D_2{T<:Real} <:Function
+struct FourierStruct3D{T<:Real}
     FourierInfos::FourierInfo{3}
     Sij_vec::Vector{T}
     Rx_vec::Vector{T}
@@ -82,7 +82,7 @@ struct FourierStr3D_2{T<:Real} <:Function
     Rz_vec::Vector{T}
     NCell::Int
 end
-struct FourierStr2D{T<:Real} <:Function
+struct FourierStruct2D{T<:Real}
     FourierInfos::FourierInfo{2}
     Sij_vec::Vector{T}
     Rx_vec::Vector{T}
@@ -94,20 +94,19 @@ function splitRij(Rij::Vector{SVector{Dim,T}}) where {T<:Real,Dim}
     return [[r[i] for r in Rij] for i in 1:Dim]
 end
 
-FourierStr(F::FourierInfo{2},Sij,Rx_vec,Ry_vec,NCell) = FourierStr2D(F,Sij,Rx_vec,Ry_vec,NCell)
-FourierStr(F::FourierInfo{3},Sij,Rx_vec,Ry_vec,Rz_vec,NCell) = FourierStr3D_2(F,Sij,Rx_vec,Ry_vec,Rz_vec,NCell)
+FourierStruct(F::FourierInfo{2},Sij,Rx_vec,Ry_vec,NCell) = FourierStruct2D(F,Sij,Rx_vec,Ry_vec,NCell)
+FourierStruct(F::FourierInfo{3},Sij,Rx_vec,Ry_vec,Rz_vec,NCell) = FourierStruct3D(F,Sij,Rx_vec,Ry_vec,Rz_vec,NCell)
 
-function FourierStr(S_pairs::AbstractVector,Lattice::AbstractLattice)
+function FourierStruct(S_pairs::AbstractVector,Lattice::AbstractLattice)
     Sij = S_pairs[Lattice.FourierInfos.pairs]
     Rij_vec = Lattice.FourierInfos.Rij_vec
 
     R = splitRij(Rij_vec)
-    return FourierStr(Lattice.FourierInfos,Sij,R...,Lattice.Basis.NCell)
+    return FourierStruct(Lattice.FourierInfos,Sij,R...,Lattice.Basis.NCell)
 end
 
-@inline function (F::FourierStr3D_2)(k::AbstractVector{T}) where T <: Real
+@inline function (F::FourierStruct3D)(kx::T,ky::T,kz::T) where T <: Real
     Chi_k = zero(T)
-    kx,ky,kz = k
     (;Rx_vec,Ry_vec,Rz_vec,Sij_vec,NCell) = F
     @turbo for i in eachindex(Rx_vec,Ry_vec,Rz_vec,Sij_vec)
         Rx = Rx_vec[i]
@@ -118,9 +117,12 @@ end
     return Chi_k/NCell
 end
 
-@inline function (F::FourierStr2D)(k::AbstractVector{T}) where T <: Real
+(F::FourierStruct3D)(k::AbstractVector{T}) where T <: Real = F(k...)
+
+(F::FourierStruct2D)(k::AbstractVector{T}) where T <: Real = F(k...)
+
+@inline function (F::FourierStruct3D)(kx::T,ky::T) where T <: Real
     Chi_k = zero(T)
-    kx,ky = k
     (;Rx_vec,Ry_vec,Sij_vec,NCell) = F
     @turbo for i in eachindex(Rx_vec,Ry_vec,Sij_vec)
         Rx = Rx_vec[i]
@@ -136,9 +138,11 @@ end
 
 """Constructs a function χ(q) for given real space chi and the lattice structure and returns it"""
 function getFourier(Chi_R::AbstractArray,Lattice::AbstractLattice)
-    @inline FT(q::StaticVector) = FourierTransform(Float64.(q),Chi_R,Lattice.Basis.NCell,Lattice.FourierInfos.pairs,Lattice.FourierInfos.Rij_vec)
+    FTStr = FourierStruct(Chi_R,Lattice)
+    @inline FT(q::SVector) = FTStr(q)
     @inline FT(qx::Real,qy::Real) = FT(SA[qx,qy])
     @inline FT(qx::Real,qy::Real,qz::Real) = FT(SA[qx,qy,qz])
+
     @inline FT(q) = throw(ArgumentError("Please use a static vector or function arguments"))
     return FT
 end
