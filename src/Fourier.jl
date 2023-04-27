@@ -161,7 +161,6 @@ function Fourier2D(Chi_R::AbstractArray,x::AbstractVector,y::AbstractVector, reg
         kj = y[j]
         for (i,ki) in enumerate(x)
             Chi_k[i,j] = FT(regionfunc(ki,kj))
-            # isnan(Chi_k[i,j]) && println((i,j,ki,kj))
         end
     end
     return Chi_k
