@@ -154,13 +154,13 @@ function Fourier2D(Chi_R::AbstractArray,regionfunc::Function,Lattice::AbstractLa
     return karray,Chi_k
 end
 
-function Fourier2D(Chi_R::AbstractArray,x::AbstractVector,y::AbstractVector, regionfunc::Function,Lattice::AbstractLattice;fast = true)
+function Fourier2D(Chi_R::AbstractArray,x::AbstractVector,y::AbstractVector, regionfunc::Function,Lattice::AbstractLattice)
     Chi_k = zeros(length(x),length(y))
-    FT = fast ? FourierTransform : FourierTransform_prec
+    FT = FourierStruct(Chi_R,Lattice)
     Threads.@threads for j in eachindex(y)
         kj = y[j]
         for (i,ki) in enumerate(x)
-            Chi_k[i,j] = FT(regionfunc(ki,kj),Chi_R,Lattice)
+            Chi_k[i,j] = FT(regionfunc(ki,kj))
             # isnan(Chi_k[i,j]) && println((i,j,ki,kj))
         end
     end
@@ -173,13 +173,17 @@ function Fourier3D(Chi_R::AbstractArray,Lattice::AbstractLattice;res=50,ext = pi
     k, Fourier3D(Chi_R,Lattice,k,k,k;kwargs...)
 end
 
-function Fourier3D(Chi_R::AbstractArray,Lattice::AbstractLattice,kx_vec::AbstractVector,ky_vec::AbstractVector,kz_vec::AbstractVector;fast = true)
+function Fourier3D(Chi_R::AbstractArray,Lattice::AbstractLattice,kx_vec::AbstractVector,ky_vec::AbstractVector,kz_vec::AbstractVector)
     Chi_k = zeros(length(kx_vec),length(ky_vec),length(kz_vec))
-    FT = fast ? FourierTransform : FourierTransform_prec
+    FT = FourierStruct(Chi_R,Lattice)
     Threads.@threads for iz in eachindex(kz_vec)
         kz = kz_vec[iz]
-        for (iy,ky) in enumerate(ky_vec),(ix,kx) in enumerate(kx_vec)
-            Chi_k[ix,iy,iz] = FT(SA[kx,ky,kz],Chi_R,Lattice)
+        Threads.@threads for iy in eachindex(ky_vec)
+            ky = ky_vec[iy]
+            for ix in eachindex(kx_vec)
+                kx = kx_vec[ix]
+                Chi_k[ix,iy,iz] = FT(kx,ky,kz)
+            end
         end
     end
     return Chi_k
