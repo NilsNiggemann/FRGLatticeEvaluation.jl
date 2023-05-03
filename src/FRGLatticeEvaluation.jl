@@ -1,6 +1,7 @@
 module FRGLatticeEvaluation
     
     using SpinFRGLattices,StaticArrays,LaTeXStrings,Optim,LinearAlgebra,LoopVectorization
+
     using SLEEFPirates
     include("Fourier.jl")
     export AbstractLattice, LatticeInfo,FourierTransform, Fourier2D,Fourier3D,  getFlow, getMaxFlow, pointPath, fetchKPath,getkMax,CorrelationLength,maxCorrelationLength,getkMaxOptim

@@ -74,7 +74,8 @@ end
     return 1/NCell * Chi_k
 end
 
-struct FourierStruct3D{T<:Real}
+abstract type AbstractFourierStruct end
+struct FourierStruct3D{T<:Real} <:AbstractFourierStruct
     FourierInfos::FourierInfo{3}
     Sij_vec::Vector{T}
     Rx_vec::Vector{T}
@@ -82,7 +83,7 @@ struct FourierStruct3D{T<:Real}
     Rz_vec::Vector{T}
     NCell::Int
 end
-struct FourierStruct2D{T<:Real}
+struct FourierStruct2D{T<:Real} <: AbstractFourierStruct
     FourierInfos::FourierInfo{2}
     Sij_vec::Vector{T}
     Rx_vec::Vector{T}
@@ -117,11 +118,11 @@ end
     return Chi_k/NCell
 end
 
-(F::FourierStruct3D)(k::AbstractVector{T}) where T <: Real = F(k...)
+(F::AbstractFourierStruct)(k::AbstractVector{T}) where T <: Real = F(k...)
 
-(F::FourierStruct2D)(k::AbstractVector{T}) where T <: Real = F(k...)
+(F::AbstractFourierStruct)(::Any) = throw(ArgumentError("k must be a Static vector "))
 
-@inline function (F::FourierStruct3D)(kx::T,ky::T) where T <: Real
+@inline function (F::FourierStruct2D)(kx::T,ky::T) where T <: Real
     Chi_k = zero(T)
     (;Rx_vec,Ry_vec,Sij_vec,NCell) = F
     @turbo for i in eachindex(Rx_vec,Ry_vec,Sij_vec)
@@ -137,15 +138,7 @@ end
 @inline FourierTransform_prec(k,Chi_R, Lattice::AbstractLattice) = FourierTransform_prec(k,Chi_R, Lattice.Basis.NCell,Lattice.FourierInfos.pairs,Lattice.FourierInfos.Rij_vec) 
 
 """Constructs a function χ(q) for given real space chi and the lattice structure and returns it"""
-function getFourier(Chi_R::AbstractArray,Lattice::AbstractLattice)
-    FTStr = FourierStruct(Chi_R,Lattice)
-    @inline FT(q::SVector) = FTStr(q)
-    @inline FT(qx::Real,qy::Real) = FT(SA[qx,qy])
-    @inline FT(qx::Real,qy::Real,qz::Real) = FT(SA[qx,qy,qz])
-
-    @inline FT(q) = throw(ArgumentError("Please use a static vector or function arguments"))
-    return FT
-end
+getFourier(Chi_R::AbstractArray,Lattice::AbstractLattice) = FourierStruct(Chi_R,Lattice)
 
 """Returns 2D Fourier trafo in plane as specified by the "regionfunc" function. Eg for a plot in the xy plane we can use plane = (ki,kj) -> SA[ki,kj] """
 function Fourier2D(Chi_R::AbstractArray,regionfunc::Function,Lattice::AbstractLattice;res=100,ext = pi,minext = -ext,kwargs...)
@@ -270,7 +263,8 @@ end
 """Compute correlation length according to Sandvik's definition
 A. W. Sandvik, AIP Conf. Proc. 1297, 135 (2010).
 """
-CorrelationLength(Chi::Function, Q::AbstractVector, qa::AbstractVector) = 1 / norm(Q - qa) * sqrt(abs(Chi(Q) / Chi(qa) - 1))
+CorrelationLength(Chi, Q::AbstractVector, qa::AbstractVector) = 1 / norm(Q - qa) * sqrt(abs(Chi(Q) / Chi(qa) - 1))
+
 
 function CorrelationLength(Chi::AbstractArray,Q::AbstractVector,direction::AbstractVector,Lattice::AbstractLattice) 
     ChiFunc = getFourier(Chi,Lattice)
@@ -283,10 +277,12 @@ function CorrelationLength(Chi::AbstractArray,direction::AbstractVector,Lattice:
     CorrelationLength(Chi,Q,direction,Lattice)
 end
 
+using LinearAlgebra:norm
+
 """Returns the maximum correlation length by averaging over a sphere in reciprocal space.
 Example: maxCorrelationLength(SA[π,π,π],Chi,NLen,res=50) averages over all angles θ, and ϕ such that the interval [0,2π] contains 50 points.
 """
-function maxCorrelationLength(Q::SVector, chi::Function, NLen; kwargs...)
+function maxCorrelationLength(Q::SVector, chi, NLen; kwargs...)
     dirs = unitsphereGenerator(Q;kwargs...)
     qa(d) = Q + d / norm(d) * 2π / NLen
     return maximum(CorrelationLength(chi, Q, qa(d)) for d in dirs)
@@ -306,4 +302,4 @@ function unitsphereGenerator(::SVector{2,<:Real}; res=50)
     return (sphere(1,p) for p in phi)
 end
 
-maxCorrelationLength(Q::SVector, chi::Function; kwargs...) = maxCorrelationLength(Q, chi, chi.Lattice.NLen;kwargs...)
+maxCorrelationLength(Q::SVector, chi; kwargs...) = maxCorrelationLength(Q, chi, chi.Lattice.NLen;kwargs...)
