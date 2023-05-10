@@ -76,7 +76,6 @@ end
 
 abstract type AbstractFourierStruct end
 struct FourierStruct3D{T<:Real} <:AbstractFourierStruct
-    FourierInfos::FourierInfo{3}
     Sij_vec::Vector{T}
     Rx_vec::Vector{T}
     Ry_vec::Vector{T}
@@ -84,7 +83,6 @@ struct FourierStruct3D{T<:Real} <:AbstractFourierStruct
     NCell::Int
 end
 struct FourierStruct2D{T<:Real} <: AbstractFourierStruct
-    FourierInfos::FourierInfo{2}
     Sij_vec::Vector{T}
     Rx_vec::Vector{T}
     Ry_vec::Vector{T}
@@ -95,15 +93,20 @@ function splitRij(Rij::Vector{SVector{Dim,T}}) where {T<:Real,Dim}
     return [[r[i] for r in Rij] for i in 1:Dim]
 end
 
-FourierStruct(F::FourierInfo{2},Sij,Rx_vec,Ry_vec,NCell) = FourierStruct2D(F,Sij,Rx_vec,Ry_vec,NCell)
-FourierStruct(F::FourierInfo{3},Sij,Rx_vec,Ry_vec,Rz_vec,NCell) = FourierStruct3D(F,Sij,Rx_vec,Ry_vec,Rz_vec,NCell)
+FourierStruct(Sij,Rx_vec,Ry_vec,NCell) = FourierStruct2D(Sij,Rx_vec,Ry_vec,NCell)
+FourierStruct(Sij,Rx_vec,Ry_vec,Rz_vec,NCell) = FourierStruct3D(Sij,Rx_vec,Ry_vec,Rz_vec,NCell)
 
 function FourierStruct(S_pairs::AbstractVector,Lattice::AbstractLattice)
     Sij = S_pairs[Lattice.FourierInfos.pairs]
     Rij_vec = Lattice.FourierInfos.Rij_vec
 
     R = splitRij(Rij_vec)
-    return FourierStruct(Lattice.FourierInfos,Sij,R...,Lattice.Basis.NCell)
+    return FourierStruct(Sij,R...,Lattice.Basis.NCell)
+end
+
+function FourierStruct(Sij::AbstractVector,Rij_vec,NCell::Integer)
+    R = splitRij(Rij_vec)
+    return FourierStruct(Sij,R...,NCell)
 end
 
 @inline function (F::FourierStruct3D)(kx::T,ky::T,kz::T) where T <: Real
