@@ -141,19 +141,29 @@ end
 getFourier(Chi_R::AbstractArray,Lattice::AbstractLattice) = FourierStruct(Chi_R,Lattice)
 
 """Returns 2D Fourier trafo in plane as specified by the "regionfunc" function. Eg for a plot in the xy plane we can use plane = (ki,kj) -> SA[ki,kj] """
-function Fourier2D(Chi_R::AbstractArray,regionfunc::Function,Lattice::AbstractLattice;res=100,ext = pi,minext = -ext,kwargs...)
+function Fourier2D(Chi,regionfunc::Function,Lattice::AbstractLattice;res=100,ext = pi,minext = -ext,kwargs...)
     karray = range(minext,stop = ext,length = res)
-    Chi_k = Fourier2D(Chi_R,karray,karray ,regionfunc,Lattice;kwargs...)
+    Chi_k = Fourier2D(Chi,karray,karray ,regionfunc,Lattice;kwargs...)
+    return karray,Chi_k
+end
+
+function Fourier2D(ChikFunction,regionfunc::Function;res=100,ext = pi,minext = -ext,kwargs...)
+    karray = range(minext,stop = ext,length = res)
+    Chi_k = Fourier2D(ChikFunction,karray,karray ,regionfunc;kwargs...)
     return karray,Chi_k
 end
 
 function Fourier2D(Chi_R::AbstractArray,x::AbstractVector,y::AbstractVector, regionfunc::Function,Lattice::AbstractLattice)
-    Chi_k = zeros(length(x),length(y))
     FT = FourierStruct(Chi_R,Lattice)
+    return Fourier2D(FT,x,y,regionfunc)
+end
+
+function Fourier2D(ChikFunction,x::AbstractVector,y::AbstractVector, regionfunc::Function)
+    Chi_k = zeros(length(x),length(y))
     Threads.@threads for j in eachindex(y)
         kj = y[j]
         for (i,ki) in enumerate(x)
-            Chi_k[i,j] = FT(regionfunc(ki,kj))
+            Chi_k[i,j] = ChikFunction(regionfunc(ki,kj))
         end
     end
     return Chi_k
@@ -165,16 +175,28 @@ function Fourier3D(Chi_R::AbstractArray,Lattice::AbstractLattice;res=50,ext = pi
     k, Fourier3D(Chi_R,Lattice,k,k,k;kwargs...)
 end
 
+function Fourier3D(Chi_Function;res=50,ext = pi,minext = -ext,kwargs...)
+    k = range(minext,stop = ext,length = res)
+    k, Fourier3D(Chi_Function,k,k,k;kwargs...)
+end
+
+fullFourier(Chi_Function::FourierStruct3D;kwargs...) = Fourier3D(Chi_Function;kwargs...)
+fullFourier(Chi_Function::FourierStruct2D;kwargs...) = Fourier2D(Chi_Function;kwargs...)
+
 function Fourier3D(Chi_R::AbstractArray,Lattice::AbstractLattice,kx_vec::AbstractVector,ky_vec::AbstractVector,kz_vec::AbstractVector)
-    Chi_k = zeros(length(kx_vec),length(ky_vec),length(kz_vec))
     FT = FourierStruct(Chi_R,Lattice)
+    return Fourier3D(FT,kx_vec,ky_vec,kz_vec)
+end
+
+function Fourier3D(ChikFunction,kx_vec::AbstractVector,ky_vec::AbstractVector,kz_vec::AbstractVector)
+    Chi_k = zeros(length(kx_vec),length(ky_vec),length(kz_vec))
     Threads.@threads for iz in eachindex(kz_vec)
         kz = kz_vec[iz]
         Threads.@threads for iy in eachindex(ky_vec)
             ky = ky_vec[iy]
             for ix in eachindex(kx_vec)
                 kx = kx_vec[ix]
-                Chi_k[ix,iy,iz] = FT(kx,ky,kz)
+                Chi_k[ix,iy,iz] = ChikFunction(kx,ky,kz)
             end
         end
     end
@@ -210,9 +232,16 @@ function getMaxFlow(Chi_LR::AbstractMatrix,Lambdas,Lattice::AbstractLattice;  re
 end
 
 
-function getkMax(Chi_R::AbstractVector,Lattice::AbstractLattice,ext = 4pi,res = 50;kwargs...) 
+function getkMax(Chi_R::AbstractVector,Lattice::AbstractLattice;kwargs...) 
     FT = getFullFourier(Lattice;ext,res,kwargs...)
     k, Chik = FT(Chi_R)
+    maxpos =  Tuple(argmax(Chik))
+    kmax = SA[k[[maxpos...]]...]
+end
+
+
+function getkMax(ChikFunction;kwargs...) 
+    k, Chik = fullFourier(ChikFunction;kwargs...)
     maxpos =  Tuple(argmax(Chik))
     kmax = SA[k[[maxpos...]]...]
 end
@@ -231,9 +260,13 @@ function getkMaxOptim(Chiq,kguess::T;kwargs...) where T <: SVector
 end
 
 """Given a vector of real space susceptibilities and a lattice, compute the wavevector of the maximum susceptibility by first optimizing over a coarse k-space grid of resolution res and then refining the result with a gradient descent"""
-function getkMaxOptim(Chi_R::AbstractVector,Lattice::AbstractLattice;ext = 4pi,res = 50,kwargs...)
-    kguess = getkMax(Chi_R,Lattice,ext,res)
+function getkMaxOptim(Chi_R::AbstractVector,Lattice::AbstractLattice;kwargs...)
     Chiq = getFourier(Chi_R,Lattice)
+    return getkMaxOptim(Chiq;kwargs...)
+end
+
+function getkMaxOptim(Chiq;ext = 4pi,res = 50,kwargs...)
+    kguess = getkMax(Chiq;ext,res)
     return getkMaxOptim(Chiq,kguess;kwargs...)
 end
 
