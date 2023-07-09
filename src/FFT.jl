@@ -19,20 +19,29 @@ end
 function padSusc(ChiR::AbstractArray{T},::AutomaticPadding) where T <: Number
     dims = size(ChiR)
     Nearest2Power = Tuple(ceil(Int,2^log2(d)) for d in dims)
-    minSize = 512
-    # minSize = 8
+    minSize = 128
     newDims =  Tuple(max(n,minSize) for n in Nearest2Power)
+    return padSusc(ChiR,newDims)
+end
+
+function padSusc(ChiR::AbstractArray{T},newDims::Tuple) where T <: Number
+    dims = size(ChiR)
+    newDims =  max.(dims,newDims)
+
     PaddedChiR = zeros(T,newDims)
     for I in CartesianIndices(ChiR)
-        newI = I + CartesianIndex((newDims .- dims).÷ 2 )
+        newI = I + CartesianIndex((newDims .- dims).÷ 2 .+ iseven.(dims))
         PaddedChiR[newI] = ChiR[I]
     end
     return PaddedChiR
 end
 
-padSusc(ChiR,::Any) = ChiR
+function padSusc(ChiR::AbstractArray{T},val::Integer) where T <: Number
+    val <= 0 && return ChiR
+    padSusc(ChiR,Tuple(val for s in size(ChiR)))
+end
 
-function getInterpolatedFFT(Chi_ij,padding = AutomaticPadding())
+function getInterpolatedFFT(Chi_ij,padding = 0)
     Chi_ij = padSusc(Chi_ij,padding)
     k = getk(Chi_ij)
     FFT = getFFT(Chi_ij)
