@@ -19,7 +19,7 @@ end
 function padSusc(ChiR::AbstractArray{T},::AutomaticPadding) where T <: Number
     dims = size(ChiR)
     Nearest2Power = Tuple(ceil(Int,2^log2(d)) for d in dims)
-    minSize = 128
+    minSize = 64
     newDims =  Tuple(max(n,minSize) for n in Nearest2Power)
     return padSusc(ChiR,newDims)
 end
@@ -27,9 +27,11 @@ end
 function padSusc(ChiR::AbstractArray{T},newDims::Tuple) where T <: Number
     dims = size(ChiR)
     newDims =  max.(dims,newDims)
-    shift = CartesianIndex(iseven.(newDims) .- isequal.(dims,newDims))
+    shift = CartesianIndex(( (d ≠ nd) && iseven(nd)  for (d,nd) in zip(dims,newDims))...)
+
     Origin = CartesianIndex((newDims .- dims).÷ 2 )
 
+    # @info "" dims newDims shift Origin
     PaddedChiR = zeros(T,newDims)
     for I in CartesianIndices(ChiR)
         newI = I + shift + Origin
@@ -45,18 +47,13 @@ end
 
 function getInterpolatedFFT(Chi_ij::AbstractArray{<:Real},padding = 0)
     Chi_ij = padSusc(Chi_ij,padding)
-    # k = getk(Chi_ij)
     nk = Tuple(0:N for N in size(Chi_ij))
     FFT = real(getFFT(Chi_ij)[nk...])
     k = Tuple(2π/N .* (0:N) for N in size(Chi_ij))
-    # chik = linear_interpolation(k,FFT)
-    # @info "" k nk FFT|> size
     chik = Interpolations.interpolate(k,FFT, Gridded(Linear()))
     chik = extrapolate(chik,Periodic(OnGrid()))
-
     return chik
 end
-# getk(ChiR) = Tuple(fftshift(FFTViews.fftfreq(d))*2π for d in size(ChiR))
 
 function separateSublattices(Ri_vec::AbstractVector{Rvec_3D},Rj_vec::AbstractVector{Rvec_3D},Chi_ij)
     NCell = length(unique(x.b for x in Rj_vec))
