@@ -27,10 +27,12 @@ end
 function padSusc(ChiR::AbstractArray{T},newDims::Tuple) where T <: Number
     dims = size(ChiR)
     newDims =  max.(dims,newDims)
+    shift = CartesianIndex(iseven.(newDims) .- isequal.(dims,newDims))
+    Origin = CartesianIndex((newDims .- dims).÷ 2 )
 
     PaddedChiR = zeros(T,newDims)
     for I in CartesianIndices(ChiR)
-        newI = I + CartesianIndex((newDims .- dims).÷ 2 .+ iseven.(newDims))
+        newI = I + shift + Origin
         PaddedChiR[newI] = ChiR[I]
     end
     return PaddedChiR
