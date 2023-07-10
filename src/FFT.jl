@@ -1,5 +1,5 @@
-using FFTW, Interpolations
-
+using FFTViews, Interpolations
+using FFTViews:fftfreq,fftshift,ifftshift,fft,rfft
 abstract type AbstractPadding end
 struct AutomaticPadding <: AbstractPadding end
 
@@ -12,7 +12,7 @@ Assumptions:
 """
 function getFFT(ChiR)
     # @assert all(isodd.(size(ChiR))) "works only for odd length of dimensions, but dims(ChiR) = $(size(ChiR))"
-    chik = real(fftshift(fft(ifftshift(ChiR))))
+    chik = FFTView(fft(ifftshift(ChiR)))
     return chik
 end
 
@@ -30,7 +30,7 @@ function padSusc(ChiR::AbstractArray{T},newDims::Tuple) where T <: Number
 
     PaddedChiR = zeros(T,newDims)
     for I in CartesianIndices(ChiR)
-        newI = I + CartesianIndex((newDims .- dims).÷ 2 .+ iseven.(dims))
+        newI = I + CartesianIndex((newDims .- dims).÷ 2 .+ iseven.(newDims))
         PaddedChiR[newI] = ChiR[I]
     end
     return PaddedChiR
@@ -41,17 +41,20 @@ function padSusc(ChiR::AbstractArray{T},val::Integer) where T <: Number
     padSusc(ChiR,Tuple(val for s in size(ChiR)))
 end
 
-function getInterpolatedFFT(Chi_ij,padding = 0)
+function getInterpolatedFFT(Chi_ij::AbstractArray{<:Real},padding = 0)
     Chi_ij = padSusc(Chi_ij,padding)
-    k = getk(Chi_ij)
-    FFT = getFFT(Chi_ij)
+    # k = getk(Chi_ij)
+    nk = Tuple(0:N for N in size(Chi_ij))
+    FFT = real(getFFT(Chi_ij)[nk...])
+    k = Tuple(2π/N .* (0:N) for N in size(Chi_ij))
     # chik = linear_interpolation(k,FFT)
+    # @info "" k nk FFT|> size
     chik = Interpolations.interpolate(k,FFT, Gridded(Linear()))
     chik = extrapolate(chik,Periodic(OnGrid()))
 
     return chik
 end
-getk(ChiR) = Tuple(fftshift(fftfreq(d))*2π for d in size(ChiR))
+# getk(ChiR) = Tuple(fftshift(FFTViews.fftfreq(d))*2π for d in size(ChiR))
 
 function separateSublattices(Ri_vec::AbstractVector{Rvec_3D},Rj_vec::AbstractVector{Rvec_3D},Chi_ij)
     NCell = length(unique(x.b for x in Rj_vec))
