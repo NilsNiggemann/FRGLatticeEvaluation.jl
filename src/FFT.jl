@@ -48,7 +48,7 @@ end
 function getInterpolatedFFT(Chi_ij::AbstractArray{<:Real},padding = 0)
     Chi_ij = padSusc(Chi_ij,padding)
     nk = Tuple(0:N for N in size(Chi_ij))
-    FFT = real(getFFT(Chi_ij)[nk...])
+    FFT = getFFT(Chi_ij)[nk...]
     k = Tuple(2π/N .* (0:N) for N in size(Chi_ij))
     chik = Interpolations.interpolate(k,FFT, Gridded(Linear()))
     chik = extrapolate(chik,Periodic(OnGrid()))
@@ -59,7 +59,7 @@ function separateSublattices(Ri_vec::AbstractVector{Rvec_3D},Rj_vec::AbstractVec
     NCell = length(unique(x.b for x in Rj_vec))
     maxn(R) = maximum(abs,(R.n1,R.n2,R.n3))
     L = maximum(maxn,Rj_vec)
-    padding = 10
+    padding = 0
     # chi_ij(α,β) = [χ for (i,χ) in enumerate(Chi_ij) if Ri_vec[i].b == α && Rj_vec[i].b == β ]
 
     function chi_ij(α,β) 
@@ -70,6 +70,31 @@ function separateSublattices(Ri_vec::AbstractVector{Rvec_3D},Rj_vec::AbstractVec
         for (i,χ) in enumerate(Chi_ij)
             if Ri_vec[i].b == α && Rj_vec[i].b == β
                 chi[ offset+ Rj_vec[i].n1, offset+ Rj_vec[i].n2, offset+ Rj_vec[i].n3] = χ
+            end
+        end
+        return chi
+    end
+    return [chi_ij(α,β) for α in 1:NCell, β in 1:NCell]
+end
+
+function separateSublattices(Ri_vec::AbstractVector{Rvec_2D},Rj_vec::AbstractVector{Rvec_2D},Chi_ij)
+    NCell = length(unique(x.b for x in Rj_vec))
+    maxn(R) = maximum(abs,(R.n1,R.n2))
+    L = maximum(maxn,Rj_vec)
+    padding = 0
+    # chi_ij(α,β) = [χ for (i,χ) in enumerate(Chi_ij) if Ri_vec[i].b == α && Rj_vec[i].b == β ]
+
+    function chi_ij(α,β) 
+        Lbox = 2L+1+2*padding
+
+        chi = zeros(Lbox,Lbox)
+        offset = L+1+padding
+        for (i,χ) in enumerate(Chi_ij)
+            if Ri_vec[i].b == α && Rj_vec[i].b == β
+                # if χ != 0
+                #     @info "" offset Rj_vec[i]
+                # end
+                chi[ offset+ Rj_vec[i].n1, offset+ Rj_vec[i].n2] = χ
             end
         end
         return chi
@@ -104,9 +129,11 @@ getCorrelationPairs(Lat::AbstractLattice) = getCorrelationPairs(Lat.UnitCell,Lat
 
 
 function interpolatedChi(Chi_ab,Basis)
-    chiab = [linear_interpolation(getk(chi),getFFT(chi)) for chi in Chi_ab]
+    chiKab = [getInterpolatedFFT(chi,64) for chi in Chi_ab]
+    T = Basis.T
+    Tinv = inv(T)
 
-    chi(α,β,k) = exp(1im*k'*(Basis.b[α]-Basis.b[β]))* chiab[α,β]((Basis.T*k)...)
+    chi(α,β,k) = exp(1im*k'*(Basis.b[α]-Basis.b[β]))* chiKab[α,β]((Tinv'*k)...)
 
-    return [k->chi(α,β,k) for α in 1:Basis.NCell, β in 1:Basis.NCell]
+    return [(args...)->chi(α,β,SA[args...]) for α in 1:Basis.NCell, β in 1:Basis.NCell]
 end
