@@ -1,107 +1,30 @@
-using FFTViews, Interpolations
-using FFTViews:fftfreq,fftshift,ifftshift,fft,rfft
-abstract type AbstractPadding end
-struct AutomaticPadding <: AbstractPadding end
-
-"""
-Given a function ChiR, return the Fourier transform via FFT.
-Assumptions:
-    - ChiR is given in lattice coordinates, i.e. Chi[n1,n2,n3] corresponds to chi(0,n1*a1+n2*a2+n3*a3) 
-    - The central index corresponds to chi(0,0). 
-    - each dimension is of odd length
-"""
-function getFFT(ChiR)
-    # @assert all(isodd.(size(ChiR))) "works only for odd length of dimensions, but dims(ChiR) = $(size(ChiR))"
-    chik = FFTView(fft(ifftshift(ChiR)))
-    return chik
-end
-
-function padSusc(ChiR::AbstractArray{T},::AutomaticPadding) where T <: Number
-    dims = size(ChiR)
-    Nearest2Power = Tuple(ceil(Int,2^log2(d)) for d in dims)
-    minSize = 64
-    newDims =  Tuple(max(n,minSize) for n in Nearest2Power)
-    return padSusc(ChiR,newDims)
-end
-
-function padSusc(ChiR::AbstractArray{T},newDims::Tuple) where T <: Number
-    dims = size(ChiR)
-    newDims =  max.(dims,newDims)
-    shift = CartesianIndex(( (d ≠ nd) && iseven(nd)  for (d,nd) in zip(dims,newDims))...)
-
-    Origin = CartesianIndex((newDims .- dims).÷ 2 )
-
-    # @info "" dims newDims shift Origin
-    PaddedChiR = zeros(T,newDims)
-    for I in CartesianIndices(ChiR)
-        newI = I + shift + Origin
-        PaddedChiR[newI] = ChiR[I]
-    end
-    return PaddedChiR
-end
-
-function padSusc(ChiR::AbstractArray{T},val::Integer) where T <: Number
-    val <= 0 && return ChiR
-    padSusc(ChiR,Tuple(val for s in size(ChiR)))
-end
-
-function getInterpolatedFFT(Chi_ij::AbstractArray{<:Real},padding = 0)
-    Chi_ij = padSusc(Chi_ij,padding)
-    nk = Tuple(0:N for N in size(Chi_ij))
-    FFT = getFFT(Chi_ij)[nk...]
-    k = Tuple(2π/N .* (0:N) for N in size(Chi_ij))
-    chik = Interpolations.interpolate(k,FFT, Gridded(Linear()))
-    chik = extrapolate(chik,Periodic(OnGrid()))
-    return chik
-end
-
-function separateSublattices(Ri_vec::AbstractVector{Rvec_3D},Rj_vec::AbstractVector{Rvec_3D},Chi_ij)
+function separateSublattices(Ri_vec::AbstractVector{RType},Rj_vec::AbstractVector{RType},Chi_ij) where RType <: Rvec
     NCell = length(unique(x.b for x in Rj_vec))
-    maxn(R) = maximum(abs,(R.n1,R.n2,R.n3))
+    Lbox = 2L+1+2*padding
+
+    ChiBox(::Type{Rvec_3D}) = zeros(Lbox,Lbox,Lbox)
+    ChiBox(::Type{Rvec_2D}) = zeros(Lbox,Lbox)
+
+    maxn(R::Rvec_3D) = maximum(abs,(R.n1,R.n2,R.n3))
+    maxn(R::Rvec_2D) = maximum(abs,(R.n1,R.n2))
+
     L = maximum(maxn,Rj_vec)
-    padding = 0
-    # chi_ij(α,β) = [χ for (i,χ) in enumerate(Chi_ij) if Ri_vec[i].b == α && Rj_vec[i].b == β ]
+    offset = L+1+padding
+    coords(R::Rvec_3D) = offset .+ CartesianIndex(R.n1, R.n2, R.n3)
+    coords(R::Rvec_2D) = offset .+ CartesianIndex(R.n1, R.n2)
 
     function chi_ij(α,β) 
-        Lbox = 2L+1+2*padding
 
-        chi = zeros(Lbox,Lbox,Lbox)
-        offset = L+1+padding
+        chi = ChiBox(RType)
         for (i,χ) in enumerate(Chi_ij)
             if Ri_vec[i].b == α && Rj_vec[i].b == β
-                chi[ offset+ Rj_vec[i].n1, offset+ Rj_vec[i].n2, offset+ Rj_vec[i].n3] = χ
+                chi[coords(Rj_vec[i])] = χ
             end
         end
         return chi
     end
     return [chi_ij(α,β) for α in 1:NCell, β in 1:NCell]
 end
-
-function separateSublattices(Ri_vec::AbstractVector{Rvec_2D},Rj_vec::AbstractVector{Rvec_2D},Chi_ij)
-    NCell = length(unique(x.b for x in Rj_vec))
-    maxn(R) = maximum(abs,(R.n1,R.n2))
-    L = maximum(maxn,Rj_vec)
-    padding = 0
-    # chi_ij(α,β) = [χ for (i,χ) in enumerate(Chi_ij) if Ri_vec[i].b == α && Rj_vec[i].b == β ]
-
-    function chi_ij(α,β) 
-        Lbox = 2L+1+2*padding
-
-        chi = zeros(Lbox,Lbox)
-        offset = L+1+padding
-        for (i,χ) in enumerate(Chi_ij)
-            if Ri_vec[i].b == α && Rj_vec[i].b == β
-                # if χ != 0
-                #     @info "" offset Rj_vec[i]
-                # end
-                chi[ offset+ Rj_vec[i].n1, offset+ Rj_vec[i].n2] = χ
-            end
-        end
-        return chi
-    end
-    return [chi_ij(α,β) for α in 1:NCell, β in 1:NCell]
-end
-
 
 """Given a lattice geometry, prepare a list of all possible pairs of sites and the corresponding inequivalent pair"""
 function getCorrelationPairs(UnitCell::AbstractVector{R},SiteList::AbstractVector{R},PairList::AbstractVector{R},PairTypes,pairToInequiv,Basis) where {R <: Rvec}
@@ -126,14 +49,3 @@ function getCorrelationPairs(UnitCell::AbstractVector{R},SiteList::AbstractVecto
 end
 
 getCorrelationPairs(Lat::AbstractLattice) = getCorrelationPairs(Lat.UnitCell,Lat.SiteList,Lat.PairList,Lat.PairTypes,Lat.pairToInequiv,Lat.Basis)
-
-
-function interpolatedChi(Chi_ab,Basis)
-    chiKab = [getInterpolatedFFT(chi,64) for chi in Chi_ab]
-    T = Basis.T
-    Tinv = inv(T)
-
-    chi(α,β,k) = exp(1im*k'*(Basis.b[α]-Basis.b[β]))* chiKab[α,β]((Tinv'*k)...)
-
-    return [(args...)->chi(α,β,SA[args...]) for α in 1:Basis.NCell, β in 1:Basis.NCell]
-end

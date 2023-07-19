@@ -6,6 +6,7 @@ module FRGLatticeEvaluation
     include("Fourier.jl")
     export AbstractLattice, LatticeInfo,FourierTransform, FourierStruct2D, FourierStruct3D, FourierStruct, Fourier2D,Fourier3D,  getFlow, getMaxFlow, pointPath, fetchKPath,getkMax,CorrelationLength,maxCorrelationLength,getkMaxOptim
         
+    using LatticeFFTs
     include("FFT.jl")
     
     include("helpers.jl")
