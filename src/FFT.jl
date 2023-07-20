@@ -1,17 +1,18 @@
 function separateSublattices(Ri_vec::AbstractVector{RType},Rj_vec::AbstractVector{RType},Chi_ij) where RType <: Rvec
     NCell = length(unique(x.b for x in Rj_vec))
-    Lbox = 2L+1+2*padding
-
-    ChiBox(::Type{Rvec_3D}) = zeros(Lbox,Lbox,Lbox)
-    ChiBox(::Type{Rvec_2D}) = zeros(Lbox,Lbox)
-
+    
     maxn(R::Rvec_3D) = maximum(abs,(R.n1,R.n2,R.n3))
     maxn(R::Rvec_2D) = maximum(abs,(R.n1,R.n2))
 
     L = maximum(maxn,Rj_vec)
-    offset = L+1+padding
-    coords(R::Rvec_3D) = offset .+ CartesianIndex(R.n1, R.n2, R.n3)
-    coords(R::Rvec_2D) = offset .+ CartesianIndex(R.n1, R.n2)
+    Lbox = 2L+1
+
+    ChiBox(::Type{Rvec_3D}) = zeros(Lbox,Lbox,Lbox)
+    ChiBox(::Type{Rvec_2D}) = zeros(Lbox,Lbox)
+
+    offset = L+1
+    coords(R::Rvec_3D) = CartesianIndex(offset .+ (R.n1, R.n2, R.n3))
+    coords(R::Rvec_2D) = CartesianIndex(offset .+ (R.n1, R.n2))
 
     function chi_ij(α,β) 
 
@@ -49,3 +50,6 @@ function getCorrelationPairs(UnitCell::AbstractVector{R},SiteList::AbstractVecto
 end
 
 getCorrelationPairs(Lat::AbstractLattice) = getCorrelationPairs(Lat.UnitCell,Lat.SiteList,Lat.PairList,Lat.PairTypes,Lat.pairToInequiv,Lat.Basis)
+
+interpolatedChi(S_ab,Basis::Basis_Struct,padding = AutomaticPadding())  = interpolatedFT(S_ab,[Basis.a1 Basis.a2 Basis.a3],Basis.b,padding)
+interpolatedChi(S_ab,Basis::Basis_Struct_2D,padding = AutomaticPadding()) = interpolatedFT(S_ab,[Basis.a1 Basis.a2],Basis.b,padding)
