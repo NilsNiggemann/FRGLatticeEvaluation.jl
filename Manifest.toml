@@ -1,6 +1,6 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.9.2"
+julia_version = "1.9.1"
 manifest_format = "2.0"
 project_hash = "dad3d82eeee76e22569340c45d08991c4726eeca"
 
@@ -111,7 +111,7 @@ weakdeps = ["Dates", "LinearAlgebra"]
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "e66e0078-7015-5450-92f7-15fbd957f2ae"
-version = "1.0.5+0"
+version = "1.0.2+0"
 
 [[deps.ConstructionBase]]
 deps = ["LinearAlgebra"]
@@ -202,12 +202,6 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "c6033cc3892d0ef5bb9cd29b7f2f0331ea5184ea"
 uuid = "f5851436-0d7a-5f13-b9de-f02708fd171a"
 version = "3.3.10+0"
-
-[[deps.FRGLatticeEvaluation]]
-deps = ["FFTViews", "Interpolations", "LaTeXStrings", "LatticeFFTs", "LinearAlgebra", "LoopVectorization", "Optim", "SLEEFPirates", "SpinFRGLattices", "StaticArrays", "Test"]
-path = "C:\\Users\\wanta\\Documents\\PhD\\Projects\\FRGLatticeEvaluation.jl"
-uuid = "a44b592b-45f7-4b02-a4df-e53b23f0d903"
-version = "0.1.7"
 
 [[deps.FileWatching]]
 uuid = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"
@@ -303,8 +297,8 @@ uuid = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 version = "1.3.0"
 
 [[deps.LatticeFFTs]]
-deps = ["FFTViews", "FFTW", "FRGLatticeEvaluation", "Interpolations", "SpinFRGLattices"]
-path = "../LatticeFFTs.jl"
+deps = ["FFTViews", "FFTW", "Interpolations", "PaddedViews", "StaticArrays"]
+git-tree-sha1 = "b3d0f687c10be94bd0363a499a463b93d8acf035"
 uuid = "83e9f648-131d-4a3c-a1de-d155351cd207"
 version = "0.1.0"
 
@@ -468,6 +462,12 @@ git-tree-sha1 = "d321bf2de576bf25ec4d3e4360faca399afca282"
 uuid = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
 version = "1.6.0"
 
+[[deps.PaddedViews]]
+deps = ["OffsetArrays"]
+git-tree-sha1 = "0fac6313486baae819364c52b4f483450a9d793f"
+uuid = "5432bcbf-9aad-5242-b902-cca2824c8663"
+version = "0.5.12"
+
 [[deps.Parameters]]
 deps = ["OrderedCollections", "UnPack"]
 git-tree-sha1 = "34c0e9ad262e5f7fc75b10a9952ca7692cfc5fbe"
@@ -477,7 +477,7 @@ version = "0.12.3"
 [[deps.Pkg]]
 deps = ["Artifacts", "Dates", "Downloads", "FileWatching", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "REPL", "Random", "SHA", "Serialization", "TOML", "Tar", "UUIDs", "p7zip_jll"]
 uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
-version = "1.9.2"
+version = "1.9.0"
 
 [[deps.PolyesterWeave]]
 deps = ["BitTwiddlingConvenienceFunctions", "CPUSummary", "IfElse", "Static", "ThreadingUtilities"]

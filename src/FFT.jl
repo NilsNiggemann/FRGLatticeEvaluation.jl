@@ -1,3 +1,27 @@
+"""Given a lattice geometry, prepare a list of all possible pairs of sites and the corresponding inequivalent pair"""
+function getCorrelationPairs(UnitCell::AbstractVector{R},SiteList::AbstractVector{R},PairList::AbstractVector{R},PairTypes,pairToInequiv,Basis) where {R <: Rvec}
+    Ri_vec = empty(PairList)
+    Rj_vec = empty(PairList)
+
+    pairs = Int[]
+    for i_site in UnitCell
+        # println(Ri)
+        for j_site in SiteList # site summation
+            R_Ref,ij = pairToInequiv(i_site,j_site) #Map j to correct pair so that we may use Chi_0,j'
+            xi = getSiteType(R_Ref,Basis)
+            pair = MapToPair(xi,ij,PairList,PairTypes)
+            if pair !== 0
+                push!(Ri_vec,i_site)
+                push!(Rj_vec,j_site)
+                push!(pairs,pair)
+            end
+        end
+    end
+    return (;Ri_vec,Rj_vec,pairs)
+end
+
+"""Given lists of paired sites Rk and Rj, and their susceptibility Chi_ij, separate the susceptibility into a Matrix containing the sublattices to be used for FFT.
+"""
 function separateSublattices(Ri_vec::AbstractVector{RType},Rj_vec::AbstractVector{RType},Chi_ij) where RType <: Rvec
     NCell = length(unique(x.b for x in Rj_vec))
     
@@ -27,29 +51,19 @@ function separateSublattices(Ri_vec::AbstractVector{RType},Rj_vec::AbstractVecto
     return [chi_ij(α,β) for α in 1:NCell, β in 1:NCell]
 end
 
-"""Given a lattice geometry, prepare a list of all possible pairs of sites and the corresponding inequivalent pair"""
-function getCorrelationPairs(UnitCell::AbstractVector{R},SiteList::AbstractVector{R},PairList::AbstractVector{R},PairTypes,pairToInequiv,Basis) where {R <: Rvec}
-    Ri_vec = empty(PairList)
-    Rj_vec = empty(PairList)
-
-    pairs = Int[]
-    for i_site in UnitCell
-        # println(Ri)
-        for j_site in SiteList # site summation
-            R_Ref,ij = pairToInequiv(i_site,j_site) #Map j to correct pair so that we may use Chi_0,j'
-            xi = getSiteType(R_Ref,Basis)
-            pair = MapToPair(xi,ij,PairList,PairTypes)
-            if pair !== 0
-                push!(Ri_vec,i_site)
-                push!(Rj_vec,j_site)
-                push!(pairs,pair)
-            end
-        end
-    end
-    return (;Ri_vec,Rj_vec,pairs)
-end
 
 getCorrelationPairs(Lat::AbstractLattice) = getCorrelationPairs(Lat.UnitCell,Lat.SiteList,Lat.PairList,Lat.PairTypes,Lat.pairToInequiv,Lat.Basis)
 
-interpolatedChi(S_ab,Basis::Basis_Struct,padding = AutomaticPadding())  = interpolatedFT(S_ab,[Basis.a1 Basis.a2 Basis.a3],Basis.b,padding)
-interpolatedChi(S_ab,Basis::Basis_Struct_2D,padding = AutomaticPadding()) = interpolatedFT(S_ab,[Basis.a1 Basis.a2],Basis.b,padding)
+import LatticeFFTs.interpolatedFT
+interpolatedFT(S_ab,Basis::Basis_Struct,args...)  = interpolatedFT(S_ab,[Basis.a1 Basis.a2 Basis.a3],Basis.b,args...)
+interpolatedFT(S_ab,Basis::Basis_Struct_2D,args...) = interpolatedFT(S_ab,[Basis.a1 Basis.a2],Basis.b,args...)
+
+function interpolatedFT(ChiR::AbstractVector,Lattice::AbstractLattice,args...)
+    CorrelationPairs = getCorrelationPairs(Lattice)
+    (;Ri_vec,Rj_vec,pairs) = CorrelationPairs
+    S_ab = separateSublattices(Ri_vec,Rj_vec,ChiR[pairs])
+
+
+    (;Basis,FourierInfos) = Lattice
+    return interpolatedFT(S_ab,Basis,args...)
+end
