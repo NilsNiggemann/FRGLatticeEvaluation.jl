@@ -45,9 +45,9 @@ end
 
     @testset "2D" begin
         L1 = LatticeInfo(SquareKagome.getSquareKagome(7,(1,2,3,4)),SquareKagome)
-        coupl = L1.System.couplings
+        coupl = - L1.System.couplings
         Fourier = getFourier(coupl,L1)
-        FFT = interpolatedFT(coupl,L1,64)
+        FFT = getLatticeFFT(coupl,L1,64)
         @testset "k = $key" for (key,val) in Points2D
             k = SVector(val)
             @test Fourier(k) ≈ FFT(k) atol = 1e-6
@@ -55,14 +55,19 @@ end
     end
     @testset "3D" begin
         L1 = LatticeInfo(Pyrochlore.getPyrochlore(7),Pyrochlore)
-        coupl = L1.System.couplings
+        coupl = - L1.System.couplings
         Fourier = getFourier(coupl,L1)
-        FFT = interpolatedFT(coupl,L1,64)
+        FFT = getLatticeFFT(coupl,L1,64)
         @testset "k = $key" for (key,val) in Points3D
             k = SVector(val)
             @test Fourier(k) ≈ FFT(k) atol = 1e-4
             @test FFT[1,2](k) ≈ FFT[2,1](k)' atol = 1e-16
             @test FFT[3,4](k) ≈ FFT[4,3](k)' atol = 1e-16
+        end
+
+        @testset "kmax" begin
+            @test Fourier(getkMax(Fourier,res = 20,ext = 4pi)) ≈ FFT(getkMax(FFT,res = 20,ext = 4pi)) atol = 1e-5
+            @test Fourier(getkMaxOptim(Fourier,SA[0,0,0.])) ≈ FFT(getkMaxOptim(FFT,SA[0,0,0.])) atol = 1e-6
         end
     end
 end

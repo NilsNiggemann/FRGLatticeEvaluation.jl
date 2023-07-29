@@ -54,16 +54,34 @@ end
 
 getCorrelationPairs(Lat::AbstractLattice) = getCorrelationPairs(Lat.UnitCell,Lat.SiteList,Lat.PairList,Lat.PairTypes,Lat.pairToInequiv,Lat.Basis)
 
-import LatticeFFTs.interpolatedFT
-interpolatedFT(S_ab,Basis::Basis_Struct,args...)  = interpolatedFT(S_ab,[Basis.a1 Basis.a2 Basis.a3],Basis.b,args...)
-interpolatedFT(S_ab,Basis::Basis_Struct_2D,args...) = interpolatedFT(S_ab,[Basis.a1 Basis.a2],Basis.b,args...)
+import LatticeFFTs.getLatticeFFT
+getLatticeFFT(S_ab,Basis::Basis_Struct,args...)  = getLatticeFFT(S_ab,[Basis.a1 Basis.a2 Basis.a3],Basis.b,args...)
+getLatticeFFT(S_ab,Basis::Basis_Struct_2D,args...) = getLatticeFFT(S_ab,[Basis.a1 Basis.a2],Basis.b,args...)
 
-function interpolatedFT(ChiR::AbstractVector,Lattice::AbstractLattice,args...)
+function getLatticeFFT(ChiR::AbstractVector,Lattice::AbstractLattice,args...)
     CorrelationPairs = getCorrelationPairs(Lattice)
     (;Ri_vec,Rj_vec,pairs) = CorrelationPairs
     S_ab = separateSublattices(Ri_vec,Rj_vec,ChiR[pairs])
 
+    return getLatticeFFT(S_ab,Lattice.Basis,args...)
+end
 
-    (;Basis,FourierInfos) = Lattice
-    return interpolatedFT(S_ab,Basis,args...)
+getDim(ChikFunction::PhaseShiftedFFT) = length(ChikFunction.PhaseVector)
+getDim(ChikFunction::LatticeFFT) = length(ChikFunction[1,1].PhaseVector)
+
+function getkMax(ChikFunction::AbstractLatticeFFT;res = 120,ext = 4pi,kwargs...) 
+    dim = getDim(ChikFunction)
+    kRange = Iterators.product((range(start = -ext,stop = ext,length = res) for _ in 1:dim)...)
+    
+    kmax = first(kRange)
+    ChiMax = -Inf
+
+    for k in kRange
+        Chik = ChikFunction(SVector(k))
+        if Chik > ChiMax
+            kmax = k
+            ChiMax = Chik
+        end
+    end
+    return SVector(kmax)
 end
