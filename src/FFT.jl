@@ -75,13 +75,5 @@ function getkMax(ChikFunction::AbstractLatticeFFT;res = 120,ext = 4pi,kwargs...)
     
     kmax = first(kRange)
     ChiMax = -Inf
-
-    for k in kRange
-        Chik = ChikFunction(SVector(k))
-        if Chik > ChiMax
-            kmax = k
-            ChiMax = Chik
-        end
-    end
-    return SVector(kmax)
+    return argmax(ChikFunction::AbstractLatticeFFT,SVector(k) for k in kRange)
 end
