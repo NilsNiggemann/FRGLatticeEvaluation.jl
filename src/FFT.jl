@@ -83,25 +83,25 @@ getDim(::naiveSubLatticeFT{N,V,T}) where {N,V,T} = N
 
 getDim(ChikFunction::LatticeFT) = getDim(ChikFunction[1,1])
 
-# function getkMax(ChikFunction::AbstractLatticeFourierTransform;res = 120,ext = 4pi,kwargs...) 
-#     dim = getDim(ChikFunction)
-#     kRange = Iterators.product((range(start = -ext,stop = ext,length = res) for _ in 1:dim)...)
-    
-#     return argmax(ChikFunction::AbstractLatticeFourierTransform,SVector(k) for k in kRange)
-# end
-
-function getkMax(ChikFunction::AbstractLatticeFourierTransform;res = 60,ext = 4pi,kwargs...) 
+function getkMax(ChikFunction::AbstractLatticeFourierTransform;res = 120,ext = 4pi,kwargs...) 
     dim = getDim(ChikFunction)
-    kRange_1 = range(start = -ext,stop = ext,length = res)
-    kRange = collect(Iterators.product((kRange_1 for _ in 1:dim)...))
-
-    Chik = zeros((res for _ in 1:dim)...)
-
-    # for (ik,k) in zip(CartesianIndices(Chik),kRange)
-    Threads.@threads for (ik) in CartesianIndices(Chik)
-        k = kRange[ik]
-        Chik[ik] = ChikFunction(k...)
-    end
-    maxpos =  Tuple(argmax(Chik))
-    kmax = SVector{dim}(kRange_1[[maxpos...]])
+    kRange = Iterators.product((range(start = -ext,stop = ext,length = res) for _ in 1:dim)...)
+    
+    return argmax(ChikFunction::AbstractLatticeFourierTransform,SVector(k) for k in kRange)
 end
+
+# function getkMax(ChikFunction::AbstractLatticeFourierTransform;res = 60,ext = 4pi,kwargs...) 
+#     dim = getDim(ChikFunction)
+#     kRange_1 = range(start = -ext,stop = ext,length = res)
+#     kRange = collect(Iterators.product((kRange_1 for _ in 1:dim)...))
+
+#     Chik = zeros((res for _ in 1:dim)...)
+
+#     # for (ik,k) in zip(CartesianIndices(Chik),kRange)
+#     Threads.@threads for (ik) in CartesianIndices(Chik)
+#         k = kRange[ik]
+#         Chik[ik] = ChikFunction(k...)
+#     end
+#     maxpos =  Tuple(argmax(Chik))
+#     kmax = SVector{dim}(kRange_1[[maxpos...]])
+# end
