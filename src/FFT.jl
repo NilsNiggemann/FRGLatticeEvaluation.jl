@@ -58,6 +58,9 @@ import LatticeFFTs.getLatticeFFT
 getLatticeFFT(S_ab,Basis::Basis_Struct,args...)  = getLatticeFFT(S_ab,[Basis.a1 Basis.a2 Basis.a3],Basis.b,args...)
 getLatticeFFT(S_ab,Basis::Basis_Struct_2D,args...) = getLatticeFFT(S_ab,[Basis.a1 Basis.a2],Basis.b,args...)
 
+getnaiveLatticeFT(S_ab,Basis::Basis_Struct,args...)  = naiveLatticeFT(S_ab,[Basis.a1 Basis.a2 Basis.a3],Basis.b,args...)
+getnaiveLatticeFT(S_ab,Basis::Basis_Struct_2D,args...) = naiveLatticeFT(S_ab,[Basis.a1 Basis.a2],Basis.b,args...)
+
 function getLatticeFFT(ChiR::AbstractVector,Lattice::AbstractLattice,args...)
     CorrelationPairs = getCorrelationPairs(Lattice)
     (;Ri_vec,Rj_vec,pairs) = CorrelationPairs
@@ -66,14 +69,39 @@ function getLatticeFFT(ChiR::AbstractVector,Lattice::AbstractLattice,args...)
     return getLatticeFFT(S_ab,Lattice.Basis,args...)
 end
 
-getDim(ChikFunction::PhaseShiftedFFT) = length(ChikFunction.PhaseVector)
-getDim(ChikFunction::LatticeFT) = length(ChikFunction[1,1].PhaseVector)
+function getnaiveLatticeFT(ChiR::AbstractVector,Lattice::AbstractLattice,args...)
+    CorrelationPairs = getCorrelationPairs(Lattice)
+    (;Ri_vec,Rj_vec,pairs) = CorrelationPairs
+    S_ab = separateSublattices(Ri_vec,Rj_vec,ChiR[pairs])
 
-function getkMax(ChikFunction::AbstractLatticeFourierTransform;res = 120,ext = 4pi,kwargs...) 
-    dim = getDim(ChikFunction)
-    kRange = Iterators.product((range(start = -ext,stop = ext,length = res) for _ in 1:dim)...)
+    return getnaiveLatticeFT(S_ab,Lattice.Basis,args...)
+end
+
+
+getDim(ChikFunction::PhaseShiftedFFT) = length(ChikFunction.PhaseVector)
+getDim(::naiveSubLatticeFT{N,V,T}) where {N,V,T} = N
+
+getDim(ChikFunction::LatticeFT) = getDim(ChikFunction[1,1])
+
+# function getkMax(ChikFunction::AbstractLatticeFourierTransform;res = 120,ext = 4pi,kwargs...) 
+#     dim = getDim(ChikFunction)
+#     kRange = Iterators.product((range(start = -ext,stop = ext,length = res) for _ in 1:dim)...)
     
-    kmax = first(kRange)
-    ChiMax = -Inf
-    return argmax(ChikFunction::AbstractLatticeFourierTransform,SVector(k) for k in kRange)
+#     return argmax(ChikFunction::AbstractLatticeFourierTransform,SVector(k) for k in kRange)
+# end
+
+function getkMax(ChikFunction::AbstractLatticeFourierTransform;res = 60,ext = 4pi,kwargs...) 
+    dim = getDim(ChikFunction)
+    kRange_1 = range(start = -ext,stop = ext,length = res)
+    kRange = collect(Iterators.product((kRange_1 for _ in 1:dim)...))
+
+    Chik = zeros((res for _ in 1:dim)...)
+
+    # for (ik,k) in zip(CartesianIndices(Chik),kRange)
+    Threads.@threads for (ik) in CartesianIndices(Chik)
+        k = kRange[ik]
+        Chik[ik] = ChikFunction(k...)
+    end
+    maxpos =  Tuple(argmax(Chik))
+    kmax = SVector{dim}(kRange_1[[maxpos...]])
 end
