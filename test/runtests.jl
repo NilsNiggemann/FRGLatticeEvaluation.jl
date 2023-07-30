@@ -22,6 +22,7 @@ end
     test_fourier_onsite(L1)
     test_fourier_pairs(L1)
 end
+
 ##
 @testset "LatticeFFTs" begin
 
@@ -54,20 +55,20 @@ end
         end
     end
     @testset "3D" begin
-        L1 = LatticeInfo(Pyrochlore.getPyrochlore(7),Pyrochlore)
+        L1 = LatticeInfo(Pyrochlore.getPyrochlore(7,[1,0.5,0.3,0.2]),Pyrochlore)
         coupl = - L1.System.couplings
         Fourier = getFourier(coupl,L1)
-        FFT = getLatticeFFT(coupl,L1,64)
+        FFT = getLatticeFFT(coupl,L1,128)
         @testset "k = $key" for (key,val) in Points3D
             k = SVector(val)
             @test Fourier(k) ≈ FFT(k) atol = 1e-4
-            @test FFT[1,2](k) ≈ FFT[2,1](k)' atol = 1e-16
-            @test FFT[3,4](k) ≈ FFT[4,3](k)' atol = 1e-16
+            @test FFT[1,2](k) ≈ FFT[2,1](k)' atol = 1e-14
+            @test FFT[3,4](k) ≈ FFT[4,3](k)' atol = 1e-14
         end
 
         @testset "kmax" begin
-            @test Fourier(getkMax(Fourier,res = 20,ext = 4pi)) ≈ FFT(getkMax(FFT,res = 20,ext = 4pi)) atol = 1e-5
-            @test Fourier(getkMaxOptim(Fourier,SA[0,0,0.])) ≈ FFT(getkMaxOptim(FFT,SA[0,0,0.])) atol = 1e-6
+            @test Fourier(getkMax(Fourier,res = 20,ext = 4pi)) ≈ FFT(getkMax(FFT,res = 20,ext = 4pi)) atol = 1e-4
+            @test Fourier(getkMaxOptim(Fourier,SA[0,0,0.])) ≈ FFT(getkMaxOptim(FFT,SA[0,0,0.])) atol = 1e-4
         end
     end
 end

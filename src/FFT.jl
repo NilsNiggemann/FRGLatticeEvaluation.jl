@@ -67,13 +67,13 @@ function getLatticeFFT(ChiR::AbstractVector,Lattice::AbstractLattice,args...)
 end
 
 getDim(ChikFunction::PhaseShiftedFFT) = length(ChikFunction.PhaseVector)
-getDim(ChikFunction::LatticeFFT) = length(ChikFunction[1,1].PhaseVector)
+getDim(ChikFunction::LatticeFT) = length(ChikFunction[1,1].PhaseVector)
 
-function getkMax(ChikFunction::AbstractLatticeFFT;res = 120,ext = 4pi,kwargs...) 
+function getkMax(ChikFunction::AbstractLatticeFourierTransform;res = 120,ext = 4pi,kwargs...) 
     dim = getDim(ChikFunction)
     kRange = Iterators.product((range(start = -ext,stop = ext,length = res) for _ in 1:dim)...)
     
     kmax = first(kRange)
     ChiMax = -Inf
-    return argmax(ChikFunction::AbstractLatticeFFT,SVector(k) for k in kRange)
+    return argmax(ChikFunction::AbstractLatticeFourierTransform,SVector(k) for k in kRange)
 end
