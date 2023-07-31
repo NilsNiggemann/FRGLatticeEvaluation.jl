@@ -20,6 +20,26 @@ function getCorrelationPairs(UnitCell::AbstractVector{R},SiteList::AbstractVecto
     return (;Ri_vec,Rj_vec,pairs)
 end
 
+isInUnitCell(R::Rvec_2D) = R.n1 == 0 && R.n2 == 0
+isInUnitCell(R::Rvec_3D) = R.n1 == 0 && R.n2 == 0 && R.n3 == 0
+
+function getCorrelationPairs(pairNumberDict::AbstractDict{Tuple{R,R},I}) where {I<:Integer,R <: Rvec}
+    UCPair(R1,R2,pair) = isInUnitCell(R1)
+    # UCPair(x) = UCPair(first(first(x)),second(first(x)),second(x))
+    Ri_vec = R[]
+    Rj_vec = R[]
+    pairs = Int[]
+    for ((R1,R2),pair) in pairNumberDict
+        if UCPair(R1,R2,pair)
+            push!(Ri_vec,R1)
+            push!(Rj_vec,R2)
+            push!(pairs,pair)
+        end
+    end
+
+    return (;Ri_vec,Rj_vec,pairs)
+end
+
 """Given lists of paired sites Rk and Rj, and their susceptibility Chi_ij, separate the susceptibility into a Matrix containing the sublattices to be used for FFT.
 """
 function separateSublattices(Ri_vec::AbstractVector{RType},Rj_vec::AbstractVector{RType},Chi_ij) where RType <: Rvec
@@ -54,6 +74,8 @@ end
 
 getCorrelationPairs(Lat::AbstractLattice) = getCorrelationPairs(Lat.UnitCell,Lat.SiteList,Lat.PairList,Lat.PairTypes,Lat.pairToInequiv,Lat.Basis)
 
+getCorrelationPairs(Lattice::NamedTuple{(:pairNumberDict, :Basis)}) = getCorrelationPairs(Lattice.pairNumberDict)
+
 import LatticeFFTs.getLatticeFFT
 getLatticeFFT(S_ab,Basis::Basis_Struct,args...)  = getLatticeFFT(S_ab,[Basis.a1 Basis.a2 Basis.a3],Basis.b,args...)
 getLatticeFFT(S_ab,Basis::Basis_Struct_2D,args...) = getLatticeFFT(S_ab,[Basis.a1 Basis.a2],Basis.b,args...)
@@ -61,7 +83,7 @@ getLatticeFFT(S_ab,Basis::Basis_Struct_2D,args...) = getLatticeFFT(S_ab,[Basis.a
 getnaiveLatticeFT(S_ab,Basis::Basis_Struct,args...)  = naiveLatticeFT(S_ab,[Basis.a1 Basis.a2 Basis.a3],Basis.b,args...)
 getnaiveLatticeFT(S_ab,Basis::Basis_Struct_2D,args...) = naiveLatticeFT(S_ab,[Basis.a1 Basis.a2],Basis.b,args...)
 
-function getLatticeFFT(ChiR::AbstractVector,Lattice::AbstractLattice,args...)
+function getLatticeFFT(ChiR::AbstractVector,Lattice,args...)
     CorrelationPairs = getCorrelationPairs(Lattice)
     (;Ri_vec,Rj_vec,pairs) = CorrelationPairs
     S_ab = separateSublattices(Ri_vec,Rj_vec,ChiR[pairs])
@@ -69,7 +91,7 @@ function getLatticeFFT(ChiR::AbstractVector,Lattice::AbstractLattice,args...)
     return getLatticeFFT(S_ab,Lattice.Basis,args...)
 end
 
-function getnaiveLatticeFT(ChiR::AbstractVector,Lattice::AbstractLattice,args...)
+function getnaiveLatticeFT(ChiR::AbstractVector,Lattice,args...)
     CorrelationPairs = getCorrelationPairs(Lattice)
     (;Ri_vec,Rj_vec,pairs) = CorrelationPairs
     S_ab = separateSublattices(Ri_vec,Rj_vec,ChiR[pairs])
