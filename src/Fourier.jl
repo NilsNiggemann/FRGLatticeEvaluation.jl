@@ -243,12 +243,11 @@ function getkMax(Chi_R::AbstractVector,Lattice::AbstractLattice;kwargs...)
 end
 
 
-function getkMax(ChikFunction;kwargs...) 
+function getkMax(ChikFunction::AbstractFourierStruct;kwargs...) 
     k, Chik = fullFourier(ChikFunction;kwargs...)
     maxpos =  Tuple(argmax(Chik))
     kmax = SA[k[[maxpos...]]...]
 end
-
 
 function getkMaxOptim(Chiq,kguess::T;kwargs...) where T <: SVector
     kguess = convert(Vector,kguess)
