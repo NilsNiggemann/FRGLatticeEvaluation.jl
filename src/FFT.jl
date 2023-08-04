@@ -77,11 +77,11 @@ getCorrelationPairs(Lat::AbstractLattice) = getCorrelationPairs(Lat.UnitCell,Lat
 getCorrelationPairs(Lattice::NamedTuple{(:pairNumberDict, :Basis)}) = getCorrelationPairs(Lattice.pairNumberDict)
 
 import LatticeFFTs.getLatticeFFT
-getLatticeFFT(S_ab,Basis::Basis_Struct,args...;kwargs...)  = getLatticeFFT(S_ab,[Basis.a1 Basis.a2 Basis.a3],Basis.b,args...;kwargs...)
-getLatticeFFT(S_ab,Basis::Basis_Struct_2D,args...;kwargs...) = getLatticeFFT(S_ab,[Basis.a1 Basis.a2],Basis.b,args...;kwargs...)
+getLatticeFFT(S_ab::AbstractMatrix,Basis::Basis_Struct,args...;kwargs...)  = getLatticeFFT(S_ab,[Basis.a1 Basis.a2 Basis.a3],Basis.b,args...;kwargs...)
+getLatticeFFT(S_ab::AbstractMatrix,Basis::Basis_Struct_2D,args...;kwargs...) = getLatticeFFT(S_ab,[Basis.a1 Basis.a2],Basis.b,args...;kwargs...)
 
-getnaiveLatticeFT(S_ab,Basis::Basis_Struct,args...;kwargs...)  = naiveLatticeFT(S_ab,[Basis.a1 Basis.a2 Basis.a3],Basis.b,args...;kwargs...)
-getnaiveLatticeFT(S_ab,Basis::Basis_Struct_2D,args...;kwargs...) = naiveLatticeFT(S_ab,[Basis.a1 Basis.a2],Basis.b,args...;kwargs...)
+getnaiveLatticeFT(S_ab::AbstractMatrix,Basis::Basis_Struct,args...;kwargs...)  = naiveLatticeFT(S_ab,[Basis.a1 Basis.a2 Basis.a3],Basis.b,args...;kwargs...)
+getnaiveLatticeFT(S_ab::AbstractMatrix,Basis::Basis_Struct_2D,args...;kwargs...) = naiveLatticeFT(S_ab,[Basis.a1 Basis.a2],Basis.b,args...;kwargs...)
 
 function getLatticeFFT(ChiR::AbstractVector,Lattice,args...;kwargs...)
     CorrelationPairs = getCorrelationPairs(Lattice)
