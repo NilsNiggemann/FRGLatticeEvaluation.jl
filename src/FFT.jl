@@ -42,7 +42,7 @@ end
 
 """Given lists of paired sites Rk and Rj, and their susceptibility Chi_ij, separate the susceptibility into a Matrix containing the sublattices to be used for FFT.
 """
-function separateSublattices(Ri_vec::AbstractVector{RType},Rj_vec::AbstractVector{RType},Chi_ij) where RType <: Rvec
+function separateSublattices(Ri_vec::AbstractVector{RType},Rj_vec::AbstractVector{RType},Chi_ij::AbstractArray{T}) where {T,RType <: Rvec}
     NCell = length(unique(x.b for x in Rj_vec))
     
     maxn(R::Rvec_3D) = maximum(abs,(R.n1,R.n2,R.n3))
@@ -51,8 +51,8 @@ function separateSublattices(Ri_vec::AbstractVector{RType},Rj_vec::AbstractVecto
     L = maximum(maxn,Rj_vec)
     Lbox = 2L+1
 
-    ChiBox(::Type{Rvec_3D}) = zeros(Lbox,Lbox,Lbox)
-    ChiBox(::Type{Rvec_2D}) = zeros(Lbox,Lbox)
+    ChiBox(::Type{Rvec_3D}) = zeros(T,Lbox,Lbox,Lbox)
+    ChiBox(::Type{Rvec_2D}) = zeros(T,Lbox,Lbox)
 
     offset = L+1
     coords(R::Rvec_3D) = CartesianIndex(offset .+ (R.n1, R.n2, R.n3))
@@ -74,7 +74,7 @@ end
 
 getCorrelationPairs(Lat::AbstractLattice) = getCorrelationPairs(Lat.UnitCell,Lat.SiteList,Lat.PairList,Lat.PairTypes,Lat.pairToInequiv,Lat.Basis)
 
-getCorrelationPairs(Lattice::NamedTuple{(:pairNumberDict, :Basis)}) = getCorrelationPairs(Lattice.pairNumberDict)
+getCorrelationPairs(Lattice::NamedTuple) = getCorrelationPairs(Lattice.pairNumberDict)
 
 import LatticeFFTs.getLatticeFFT
 getLatticeFFT(S_ab::AbstractMatrix,Basis::Basis_Struct,args...;kwargs...)  = getLatticeFFT(S_ab,[Basis.a1 Basis.a2 Basis.a3],Basis.b,args...;kwargs...)

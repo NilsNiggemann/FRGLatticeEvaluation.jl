@@ -236,17 +236,30 @@ end
 
 
 function getkMax(Chi_R::AbstractVector,Lattice::AbstractLattice;kwargs...) 
-    FT = getFullFourier(Lattice;ext,res,kwargs...)
+    FT = getFullFourier(Lattice;kwargs...)
     k, Chik = FT(Chi_R)
     maxpos =  Tuple(argmax(Chik))
     kmax = SA[k[[maxpos...]]...]
 end
 
+function getMaxPos(k,Chik)
+    maxpos =  Tuple(argmax(Chik))
+    SVector{length(maxpos)}(k[[maxpos...]])
+end
 
 function getkMax(ChikFunction::AbstractFourierStruct;kwargs...) 
     k, Chik = fullFourier(ChikFunction;kwargs...)
-    maxpos =  Tuple(argmax(Chik))
-    kmax = SA[k[[maxpos...]]...]
+    getMaxPos(k,Chik)
+end
+
+function getkMax(ChikFunction::Function,dim::Val{3};kwargs...) 
+    k, Chik = Fourier3D(ChikFunction;kwargs...)
+    getMaxPos(k,Chik)
+end
+
+function getkMax(ChikFunction::Function,dim::Val{2};kwargs...) 
+    k, Chik = Fourier2D(ChikFunction,xyplane;kwargs...)
+    getMaxPos(k,Chik)
 end
 
 function getkMaxOptim(Chiq,kguess::T;kwargs...) where T <: SVector
@@ -269,6 +282,11 @@ end
 
 function getkMaxOptim(Chiq;ext = 4pi,res = 50,kwargs...)
     kguess = getkMax(Chiq;ext,res)
+    return getkMaxOptim(Chiq,kguess;kwargs...)
+end
+
+function getkMaxOptim(Chiq::Function,dim::Val;ext = 4pi,res = 50,kwargs...)
+    kguess = getkMax(Chiq,dim;ext,res)
     return getkMaxOptim(Chiq,kguess;kwargs...)
 end
 
