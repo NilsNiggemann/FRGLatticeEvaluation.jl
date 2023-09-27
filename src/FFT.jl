@@ -42,25 +42,43 @@ end
 
 """Given lists of paired sites Rk and Rj, and their susceptibility Chi_ij, separate the susceptibility into a Matrix containing the sublattices to be used for FFT.
 """
-function separateSublattices(Ri_vec::AbstractVector{RType},Rj_vec::AbstractVector{RType},Chi_ij::AbstractArray{T}) where {T,RType <: Rvec}
+function separateSublattices(Ri_vec::AbstractVector{Rvec_2D},Rj_vec::AbstractVector{Rvec_2D},Chi_ij::AbstractVector{T}) where {T}
     NCell = length(unique(x.b for x in Rj_vec))
     
-    maxn(R::Rvec_3D) = maximum(abs,(R.n1,R.n2,R.n3))
     maxn(R::Rvec_2D) = maximum(abs,(R.n1,R.n2))
 
     L = maximum(maxn,Rj_vec)
     Lbox = 2L+1
 
-    ChiBox(::Type{Rvec_3D}) = zeros(T,Lbox,Lbox,Lbox)
-    ChiBox(::Type{Rvec_2D}) = zeros(T,Lbox,Lbox)
+    offset = L+1
+    coords(R::Rvec_2D) = CartesianIndex(offset .+ (R.n1, R.n2))
+    function chi_ij(α,β) 
+
+        chi = zeros(T,Lbox,Lbox)
+        for (i,χ) in enumerate(Chi_ij)
+            if Ri_vec[i].b == α && Rj_vec[i].b == β
+                chi[coords(Rj_vec[i])] = χ
+            end
+        end
+        return chi
+    end
+    return [chi_ij(α,β) for α in 1:NCell, β in 1:NCell]
+end
+
+function separateSublattices(Ri_vec::AbstractVector{Rvec_3D},Rj_vec::AbstractVector{Rvec_3D},Chi_ij::AbstractArray{T}) where {T}
+    NCell = length(unique(x.b for x in Rj_vec))
+    
+    maxn(R::Rvec_3D) = maximum(abs,(R.n1,R.n2,R.n3))
+
+    L = maximum(maxn,Rj_vec)
+    Lbox = 2L+1
 
     offset = L+1
     coords(R::Rvec_3D) = CartesianIndex(offset .+ (R.n1, R.n2, R.n3))
-    coords(R::Rvec_2D) = CartesianIndex(offset .+ (R.n1, R.n2))
 
     function chi_ij(α,β) 
 
-        chi = ChiBox(RType)
+        chi = zeros(T,Lbox,Lbox,Lbox)
         for (i,χ) in enumerate(Chi_ij)
             if Ri_vec[i].b == α && Rj_vec[i].b == β
                 chi[coords(Rj_vec[i])] = χ
@@ -75,13 +93,30 @@ end
 getCorrelationPairs(Lat::AbstractLattice) = getCorrelationPairs(Lat.UnitCell,Lat.SiteList,Lat.PairList,Lat.PairTypes,Lat.pairToInequiv,Lat.Basis)
 
 getCorrelationPairs(Lattice::NamedTuple) = getCorrelationPairs(Lattice.pairNumberDict)
+getCorrelationPairs(Lattice::ReducedLattice) = getCorrelationPairs(Lattice.pairNumberDict)
 
 import LatticeFFTs.getLatticeFFT
-getLatticeFFT(S_ab::AbstractMatrix,Basis::Basis_Struct,args...;kwargs...)  = getLatticeFFT(S_ab,[Basis.a1 Basis.a2 Basis.a3],Basis.b,args...;kwargs...)
-getLatticeFFT(S_ab::AbstractMatrix,Basis::Basis_Struct_2D,args...;kwargs...) = getLatticeFFT(S_ab,[Basis.a1 Basis.a2],Basis.b,args...;kwargs...)
 
-getnaiveLatticeFT(S_ab::AbstractMatrix,Basis::Basis_Struct,args...;kwargs...)  = naiveLatticeFT(S_ab,[Basis.a1 Basis.a2 Basis.a3],Basis.b,args...;kwargs...)
+LatticeFFTs.getLatticeFFT(S_ab::AbstractMatrix,Basis::Basis_Struct_3D,args...;kwargs...)  = getLatticeFFT(S_ab,[Basis.a1 Basis.a2 Basis.a3],Basis.b,args...;kwargs...)
+LatticeFFTs.getLatticeFFT(S_ab::AbstractMatrix,Basis::Basis_Struct_2D,args...;kwargs...) = getLatticeFFT(S_ab,[Basis.a1 Basis.a2],Basis.b,args...;kwargs...)
+
+getnaiveLatticeFT(S_ab::AbstractMatrix,Basis::Basis_Struct_3D,args...;kwargs...)  = naiveLatticeFT(S_ab,[Basis.a1 Basis.a2 Basis.a3],Basis.b,args...;kwargs...)
 getnaiveLatticeFT(S_ab::AbstractMatrix,Basis::Basis_Struct_2D,args...;kwargs...) = naiveLatticeFT(S_ab,[Basis.a1 Basis.a2],Basis.b,args...;kwargs...)
+
+getNPairs(redLat::Union{ReducedLattice,NamedTuple}) = length(unique(values(redLat.pairNumberDict)))
+
+function setCouplings!(S_ab::AbstractMatrix{<:AbstractArray{T}},couplings,coupMap) where T
+    for (Sab,coup) in zip(S_ab,coupMap)
+        for (i,m) in enumerate(coup)
+            if m !== 0
+                Sab[i] = couplings[m]
+            else
+                Sab[i] = zero(T)
+            end
+        end
+    end
+    return S_ab
+end
 
 function getLatticeFFT(ChiR::AbstractVector,Lattice,args...;kwargs...)
     CorrelationPairs = getCorrelationPairs(Lattice)
@@ -91,14 +126,76 @@ function getLatticeFFT(ChiR::AbstractVector,Lattice,args...;kwargs...)
     return getLatticeFFT(S_ab,Lattice.Basis,args...;kwargs...)
 end
 
-function getnaiveLatticeFT(ChiR::AbstractVector,Lattice,args...;kwargs...)
-    CorrelationPairs = getCorrelationPairs(Lattice)
-    (;Ri_vec,Rj_vec,pairs) = CorrelationPairs
-    S_ab = separateSublattices(Ri_vec,Rj_vec,ChiR[pairs])
-
-    return getnaiveLatticeFT(S_ab,Lattice.Basis,args...;kwargs...)
+struct LatticeFTplan{T<:LatticeFT}
+    FT::T
 end
 
+function planaiveLatticeFT(Lattice,args...;kwargs...)
+    CorrelationPairs = getCorrelationPairs(Lattice)
+    (;Ri_vec,Rj_vec,pairs) = CorrelationPairs
+    NPairs = getNPairs(Lattice)
+    RealSpaceInds = 1:NPairs
+    S_ab_inds = separateSublattices(Ri_vec,Rj_vec,RealSpaceInds[pairs])
+    FT = getnaiveLatticeFT(S_ab_inds,Lattice.Basis,args...;kwargs...)
+    plan = LatticeFTplan(FT)
+
+    reducePlan!(plan)
+    return plan
+end
+
+
+function reducePlan!(plan::LatticeFTplan)
+    S_ab = plan.FT.S
+    for S in S_ab
+        delinds = findall(iszero,S.Sij)
+        deleteat!(S.Sij,delinds)
+        for rij_x in S.Rij
+            deleteat!(rij_x,delinds)
+        end
+    end
+    return plan
+end
+
+function convertTypes(T::Type,plan::LatticeFTplan)
+    LatticeFTplan(convertTypes(T,plan.FT))
+end
+
+function convertTypes(T::Type,FT::LatticeFFTs.LatticeFT)
+    LatticeFFTs.LatticeFT(convertTypes.(T,FT.S))
+end
+
+function convertTypes(T::Type,FT::LatticeFFTs.naiveSubLatticeFT)
+    Sij = convertTypes(T,FT.Sij)
+    Rij = convertTypes.(T,FT.Rij)
+    LatticeFFTs.naiveSubLatticeFT(Sij,Rij)
+end
+
+convertTypes(T::Type,x::AbstractArray) = convert.(T,x)
+convertTypes(T::Type,x) = convert(T,x)
+
+function getnaiveLatticeFT(ChiR::AbstractVector,plan::LatticeFTplan,args...;kwargs...)
+    Sq = convertTypes(eltype(ChiR),plan).FT
+    setCouplings!(Sq,ChiR,plan)
+    return Sq
+end
+
+getnaiveLatticeFT(ChiR::AbstractVector,Lattice,args...;kwargs...) = getnaiveLatticeFT(ChiR,planaiveLatticeFT(Lattice,args...;kwargs...))
+
+
+# planaiveLatticeFT(Lattice) = getnaiveLatticeFT(1:getNPairs(Lattice),Lattice)
+
+function setCouplings!(Sq::LatticeFFTs.LatticeFT,couplings::AbstractVector{T},plan) where T
+    for (Sab,coup) in zip(Sq.S,plan.FT.S)
+        for (i,m) in enumerate(coup.Sij)
+            if m !== 0
+                Sab.Sij[i] = couplings[m]
+            else
+                Sab.Sij[i] = zero(T)
+            end
+        end
+    end
+    return Sq
+end
 
 getDim(ChikFunction::PhaseShiftedFFT) = length(ChikFunction.PhaseVector)
 getDim(::naiveSubLatticeFT{N,V,T}) where {N,V,T} = N
