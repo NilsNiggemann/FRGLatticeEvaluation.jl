@@ -290,6 +290,20 @@ function getkMaxOptim(Chiq::Function,dim::Val;ext = 4pi,res = 50,kwargs...)
     return getkMaxOptim(Chiq,kguess;kwargs...)
 end
 
+function getkMaxOptim(Chiq,guesses::Union{Vector,Tuple};kwargs...)
+    chimax = -Inf
+    kmax = first(guesses)
+    for guess in guesses
+        k = getkMaxOptim(Chiq,guess;kwargs...)
+        chimax_new = Chiq(k)
+        if chimax_new > chimax
+            chimax = chimax_new
+            kmax = k
+        end
+    end
+    return kmax
+end
+
 function pointPath(p1::StaticArray,p2::StaticArray,res)
     Path = Vector{typeof(p1)}(undef,res)
     for i in eachindex(Path)
