@@ -100,8 +100,8 @@ import LatticeFFTs.getLatticeFFT
 LatticeFFTs.getLatticeFFT(S_ab::AbstractMatrix,Basis::Basis_Struct_3D,args...;kwargs...)  = getLatticeFFT(S_ab,[Basis.a1 Basis.a2 Basis.a3],Basis.b,args...;kwargs...)
 LatticeFFTs.getLatticeFFT(S_ab::AbstractMatrix,Basis::Basis_Struct_2D,args...;kwargs...) = getLatticeFFT(S_ab,[Basis.a1 Basis.a2],Basis.b,args...;kwargs...)
 
-getnaiveLatticeFT(S_ab::AbstractMatrix,Basis::Basis_Struct_3D,args...;kwargs...)  = naiveLatticeFT(S_ab,[Basis.a1 Basis.a2 Basis.a3],Basis.b,args...;kwargs...)
-getnaiveLatticeFT(S_ab::AbstractMatrix,Basis::Basis_Struct_2D,args...;kwargs...) = naiveLatticeFT(S_ab,[Basis.a1 Basis.a2],Basis.b,args...;kwargs...)
+getNaiveLatticeFT(S_ab::AbstractMatrix,Basis::Basis_Struct_3D,args...;kwargs...)  = naiveLatticeFT(S_ab,[Basis.a1 Basis.a2 Basis.a3],Basis.b,args...;kwargs...)
+getNaiveLatticeFT(S_ab::AbstractMatrix,Basis::Basis_Struct_2D,args...;kwargs...) = naiveLatticeFT(S_ab,[Basis.a1 Basis.a2],Basis.b,args...;kwargs...)
 
 getNPairs(redLat::Union{ReducedLattice,NamedTuple}) = length(unique(values(redLat.pairNumberDict)))
 
@@ -130,13 +130,13 @@ struct LatticeFTplan{T<:LatticeFT}
     FT::T
 end
 
-function planaiveLatticeFT(Lattice,args...;kwargs...)
+function planNaiveLatticeFT(Lattice,args...;kwargs...)
     CorrelationPairs = getCorrelationPairs(Lattice)
     (;Ri_vec,Rj_vec,pairs) = CorrelationPairs
     NPairs = getNPairs(Lattice)
     RealSpaceInds = 1:NPairs
     S_ab_inds = separateSublattices(Ri_vec,Rj_vec,RealSpaceInds[pairs])
-    FT = getnaiveLatticeFT(S_ab_inds,Lattice.Basis,args...;kwargs...)
+    FT = getNaiveLatticeFT(S_ab_inds,Lattice.Basis,args...;kwargs...)
     plan = LatticeFTplan(FT)
 
     reducePlan!(plan)
@@ -173,16 +173,13 @@ end
 convertTypes(T::Type,x::AbstractArray) = convert.(T,x)
 convertTypes(T::Type,x) = convert(T,x)
 
-function getnaiveLatticeFT(ChiR::AbstractVector,plan::LatticeFTplan,args...;kwargs...)
+function getNaiveLatticeFT(ChiR::AbstractVector,plan::LatticeFTplan,args...;kwargs...)
     Sq = convertTypes(eltype(ChiR),plan).FT
     setCouplings!(Sq,ChiR,plan)
     return Sq
 end
 
-getnaiveLatticeFT(ChiR::AbstractVector,Lattice,args...;kwargs...) = getnaiveLatticeFT(ChiR,planaiveLatticeFT(Lattice,args...;kwargs...))
-
-
-# planaiveLatticeFT(Lattice) = getnaiveLatticeFT(1:getNPairs(Lattice),Lattice)
+getNaiveLatticeFT(ChiR::AbstractVector,Lattice,args...;kwargs...) = getNaiveLatticeFT(ChiR,planNaiveLatticeFT(Lattice,args...;kwargs...))
 
 function setCouplings!(Sq::LatticeFFTs.LatticeFT,couplings::AbstractVector{T},plan) where T
     for (Sab,coup) in zip(Sq.S,plan.FT.S)

@@ -8,7 +8,7 @@ module FRGLatticeEvaluation
         
     using LatticeFFTs
     include("FFT.jl")
-    export planaiveLatticeFT,getLatticeFFT,getnaiveLatticeFT,getnaiveLatticeFT!
+    export getNPairs,planNaiveLatticeFT,getLatticeFFT,getNaiveLatticeFT,getNaiveLatticeFT!,setCouplings!,allocateNaiveLatticeFT
 
     include("helpers.jl")
     export hhlplane,normalTohhlplane,xyplane,zzerocut,sphereplane,hhllabels,xylabels,zzerolabels,normalTohhllabels,strd,strd3,getPairs,DimerResponse,DimerResponse_Keles,getFourier
