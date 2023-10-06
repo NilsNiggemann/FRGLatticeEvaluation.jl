@@ -252,12 +252,12 @@ function getkMax(ChikFunction::AbstractFourierStruct;kwargs...)
     getMaxPos(k,Chik)
 end
 
-function getkMax(ChikFunction::Function,dim::Val{3};kwargs...) 
+function getkMax(ChikFunction,dim::Val{3};kwargs...) 
     k, Chik = Fourier3D(ChikFunction;kwargs...)
     getMaxPos(k,Chik)
 end
 
-function getkMax(ChikFunction::Function,dim::Val{2};kwargs...) 
+function getkMax(ChikFunction,dim::Val{2};kwargs...) 
     k, Chik = Fourier2D(ChikFunction,xyplane;kwargs...)
     getMaxPos(k,Chik)
 end
@@ -285,7 +285,7 @@ function getkMaxOptim(Chiq;ext = 4pi,res = 50,kwargs...)
     return getkMaxOptim(Chiq,kguess;kwargs...)
 end
 
-function getkMaxOptim(Chiq::Function,dim::Val;ext = 4pi,res = 50,kwargs...)
+function getkMaxOptim(Chiq,dim::Val;ext = 4pi,res = 50,kwargs...)
     kguess = getkMax(Chiq,dim;ext,res)
     return getkMaxOptim(Chiq,kguess;kwargs...)
 end

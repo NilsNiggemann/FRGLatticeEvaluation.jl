@@ -173,8 +173,13 @@ end
 convertTypes(T::Type,x::AbstractArray) = convert.(T,x)
 convertTypes(T::Type,x) = convert(T,x)
 
+function allocateNaiveLatticeFT(plan::LatticeFTplan,dtype = Float64,args...;kwargs...)
+    Sq = convertTypes(dtype,plan).FT
+    return Sq
+end
+
 function getNaiveLatticeFT(ChiR::AbstractVector,plan::LatticeFTplan,args...;kwargs...)
-    Sq = convertTypes(eltype(ChiR),plan).FT
+    Sq = allocateNaiveLatticeFT(plan,eltype(ChiR))
     setCouplings!(Sq,ChiR,plan)
     return Sq
 end
