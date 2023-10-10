@@ -104,6 +104,7 @@ getNaiveLatticeFT(S_ab::AbstractMatrix,Basis::Basis_Struct_3D,args...;kwargs...)
 getNaiveLatticeFT(S_ab::AbstractMatrix,Basis::Basis_Struct_2D,args...;kwargs...) = naiveLatticeFT(S_ab,[Basis.a1 Basis.a2],Basis.b,args...;kwargs...)
 
 getNPairs(redLat::Union{ReducedLattice,NamedTuple}) = length(unique(values(redLat.pairNumberDict)))
+getNPairs(Lat::AbstractLattice) = Lat.Npairs
 
 function setCouplings!(S_ab::AbstractMatrix{<:AbstractArray{T}},couplings,coupMap) where T
     for (Sab,coup) in zip(S_ab,coupMap)
