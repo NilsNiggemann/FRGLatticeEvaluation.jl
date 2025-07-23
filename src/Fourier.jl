@@ -356,7 +356,7 @@ function maxCorrelationLength(Q::SVector, chi, NLen; kwargs...)
 end
 
 sphere(r,θ,ϕ) = SA[r*sin(θ)*cos(ϕ), r*sin(θ)*sin(ϕ), r*cos(θ)]
-sphere(r,ϕ) = SA[r*cos(ϕ), r*sin(θ)]
+sphere(r,ϕ) = SA[r*cos(ϕ), r*sin(ϕ)]
 
 function unitsphereGenerator(::SVector{3,<:Real}; res=50)
     theta = range(0, π, res ÷ 2)
